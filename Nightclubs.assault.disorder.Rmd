@@ -1,0 +1,67 @@
+---
+title: "Night clubs, assault, and disorderly conduct"
+author: "Erica Turner"
+date: "4/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+library(tidyverse)
+library(sf) 
+library(knitr) 
+```
+
+## Load data
+
+add
+
+```{r load data and subset}
+arrests <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Adult_Arrests.csv")
+crime <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Crime_Incidents_in_2018.csv")
+```
+
+## Subset arrests 
+
+Narrow down arrests to for simple assuault and disorderly conduct, occuring in 2017, between the hours of 9pm and 4am, and those not missing data for longitude or latitude. 
+
+Narrow down types of disorderly conduct to those likely to happen as a result of intoxication (e.g. eliminate leash law violations)
+
+
+```{r pressure, echo=FALSE}
+unique(arrests$CATEGORY)
+
+arrests2 <- arrests %>%
+  subset(YEAR > 2016) %>%
+  subset(CATEGORY == "Simple Assault" | CATEGORY == "Disorderly Conduct")
+  
+arrests2[!is.na(arrests2$OFFENSE_LONGITUDE),]
+arrests2[!is.na(arrests2$OFFENSE_LATITUDE),]
+  
+arrests3 <- subset(arrests2, CATEGORY == "Disorderly Conduct")
+unique(arrests3$DESCRIPTION)
+
+arrests4 <- arrests2 %>%
+  subset(DESCRIPTION != "Animals - Other Than Dogs At Large "  | 
+           DESCRIPTION != "Illegal Dumping" |
+           DESCRIPTION != "Dogs - Vacci tion Required " |
+           DESCRIPTION != "Dogs - At Large" |
+           DESCRIPTION != "Crossing Police Line" |
+           DESCRIPTION != "Dogs - Unleashed"   |
+           DESCRIPTION != "Wearing Hood Or Mask ---  (a) No Person Or Persons Over 16 Years Of
+           Age, While Wearing Any Mask, Hood, Or Device Whereby Any Po" |
+           DESCRIPTION != "Crowding, Obstructing, or Incommoding (M)"  |
+           DESCRIPTION != "Panhandling"  |
+           DESCRIPTION != "Aggressive Panhandling" |
+           DESCRIPTION != "Dog Regulations - Unleashed Dog " |
+           DESCRIPTION != "Blocking Passage" |
+           DESCRIPTION != "Metro - Fail To Pay Fare" |
+           DESCRIPTION != "Disorderly Conduct In A Public Building" |
+           DESCRIPTION != "Panhandling - Aggressive" |
+           DESCRIPTION != "Panhandling - Private Property" |
+            DESCRIPTION != "Dogs - Disturbing The Peace" |
+            DESCRIPTION != "Dog - Dangerous Dog Attack Or Bite" |
+            DESCRIPTION != "Attending Or Kindling Bonfires " )
+```
+
+

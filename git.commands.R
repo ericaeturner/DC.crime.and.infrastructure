@@ -1,8 +1,10 @@
-cd 
+cd /Users/Erica/Desktop/Data-Science/final.project 
 git init
-git remote add origin https://github.com/ericaeturner/DC.crime.and.infrastructure.git
+touch .gitignore
+echo "*.csv"  >>.gitignore
 git add .
-git commit "first commit"
+git remote add origin https://github.com/ericaeturner/DC.crime.and.infrastructure.git
+git commit -am "first commit"
 git push -u origin master
 
 
