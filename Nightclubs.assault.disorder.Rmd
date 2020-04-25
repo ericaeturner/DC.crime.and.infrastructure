@@ -37,7 +37,8 @@ arrests2 <- arrests %>%
   
 arrests2[!is.na(arrests2$OFFENSE_LONGITUDE),]
 arrests2[!is.na(arrests2$OFFENSE_LATITUDE),]
-  
+
+#See unique values of Disorderly Conduct to eliminate those not likely related to alcohol  
 arrests3 <- subset(arrests2, CATEGORY == "Disorderly Conduct")
 unique(arrests3$DESCRIPTION)
 
@@ -62,6 +63,11 @@ arrests4 <- arrests2 %>%
             DESCRIPTION != "Dogs - Disturbing The Peace" |
             DESCRIPTION != "Dog - Dangerous Dog Attack Or Bite" |
             DESCRIPTION != "Attending Or Kindling Bonfires " )
+
+arrests5 <- arrests4 %>%
+  subset(HOUR == 21:23 |
+           HOUR == 0:4) 
+
 ```
 
 
