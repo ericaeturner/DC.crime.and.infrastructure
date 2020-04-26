@@ -13,3 +13,5 @@
 *.shp
 *.shx
 *.xml
+*.Rhistory
+
