@@ -96,6 +96,7 @@ liquor <- liquor2
 rm(liquor2)
 ```
 
+## Plot arrests and bar locations 
 
 ```{r plotting}
 library(sf) 
@@ -107,7 +108,16 @@ hoods<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighb
 
 grid.arrange(
 ggplot(data=hoods) + geom_sf(aes(fill=Shape_Area)) +
-theme_void() + labs(title="add"))
+theme_void() + labs(title="title"))
+
+
+#? hoods.arrests <- left_join(hoods, arrests, by = "OBJECTID")
+
+plot <- ggplot(data=hoods) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2018)") 
+
+plot + geom_point(data=arrests, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="blue")
+
 
 
 ```
