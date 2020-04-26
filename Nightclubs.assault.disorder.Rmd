@@ -18,7 +18,9 @@ add
 
 ```{r load data and subset}
 arrests <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Adult_Arrests.csv")
-crime <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Crime_Incidents_in_2018.csv")
+liquor <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Liquor_Licenses.csv")
+nightclubs <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Night_clubs.csv")
+
 ```
 
 ## Subset arrests 
@@ -38,7 +40,7 @@ arrests2 <- arrests %>%
 arrests2[!is.na(arrests2$OFFENSE_LONGITUDE),]
 arrests2[!is.na(arrests2$OFFENSE_LATITUDE),]
 
-#See unique values of Disorderly Conduct to eliminate those not likely related to alcohol  
+#Unique values of Disorderly Conduct to eliminate those not likely related to alcohol  
 arrests3 <- subset(arrests2, CATEGORY == "Disorderly Conduct")
 unique(arrests3$DESCRIPTION)
 
@@ -68,6 +70,37 @@ arrests5 <- arrests4 %>%
   subset(HOUR == 21:23 |
            HOUR == 0:4) 
 
+arrests <- arrests5
+rm(arrests2, arrests3, arrests4, arrests5)
 ```
+
+## Subset liquor licenses
+
+```{r liquor}
+
+unique(liquor$STATUS)
+liquor <- subset(liquor, STATUS == "Active" |
+                   STATUS == "Issued")
+
+unique(liquor$TYPE)
+liquor2<- liquor %>%
+  subset(TYPE == "Club"  |
+           TYPE == "Nightclub"  |
+           TYPE == "Tavern"  |
+           TYPE == "Arena")
+           
+liquor2[!is.na(liquor2$LONGITUDE),]
+liquor2[!is.na(liquor2$LATITUDE),]  
+
+liquor <- liquor2
+rm(liquor2)
+```
+
+
+```{r sf}
+
+```
+
+
 
 
