@@ -30,7 +30,7 @@ Narrow down arrests to for simple assuault and disorderly conduct, occuring in 2
 Narrow down types of disorderly conduct to those likely to happen as a result of intoxication (e.g. eliminate leash law violations)
 
 
-```{r pressure, echo=FALSE}
+```{r subset, echo=FALSE, results="hide"}
 unique(arrests$CATEGORY)
 
 arrests2 <- arrests %>%
@@ -76,7 +76,7 @@ rm(arrests2, arrests3, arrests4, arrests5)
 
 ## Subset liquor licenses
 
-```{r liquor}
+```{r liquor, results="hide"}
 
 unique(liquor$STATUS)
 liquor <- subset(liquor, STATUS == "Active" |
@@ -97,10 +97,23 @@ rm(liquor2)
 ```
 
 
-```{r sf}
+```{r plotting}
+library(sf) 
+library(dplyr)
+library(httr)
+library(gridExtra)
+
+hoods<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
+
+grid.arrange(
+ggplot(data=hoods) + geom_sf(aes(fill=Shape_Area)) +
+theme_void() + labs(title="add"))
+
 
 ```
 
 
+```{r autocorelation}
 
+```
 
