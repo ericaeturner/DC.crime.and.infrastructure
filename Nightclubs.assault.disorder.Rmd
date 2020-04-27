@@ -1,9 +1,14 @@
 ---
-title: "Night clubs, assault, and disorderly conduct"
-author: "Erica Turner"
+title: "Spatial cross-correlation between bar locations and assault + disorderly conduct"
+author: "Erica Turner, Navishit Das, Ariana Grorssi, Roxanne Peloux"
 date: "4/25/2020"
 output: html_document
 ---
+
+In our final project, we will be looking at the relationship between different types of infrastructure in DC and different types of crime using geospatial analysis. In this first piece of analysis, we look at the relationship between the locations of 
+ 1. Bars 
+ 2. Simple assaults and disorderly conduct occuring late at night
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message=FALSE)
@@ -12,22 +17,19 @@ library(sf)
 library(knitr) 
 ```
 
-## Load data
+## Loading data
 
-add
 
 ```{r load data and subset}
 arrests <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Adult_Arrests.csv")
 liquor <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Liquor_Licenses.csv")
-nightclubs <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Night_clubs.csv")
-
 ```
 
-## Subset arrests 
+## Subsetting arrests 
 
-Narrow down arrests to for simple assuault and disorderly conduct, occuring in 2017, between the hours of 9pm and 4am, and those not missing data for longitude or latitude. 
+Here, we narrowed down arrests to simple assuaults and disorderly conduct, occuring in 2017, between the hours of 12am and 4am, and those not missing data for longitude or latitude. 
 
-Narrow down types of disorderly conduct to those likely to happen as a result of intoxication (e.g. eliminate leash law violations)
+We also narrowed down the types of disorderly conduct to those likely to happen as a result of intoxication (e.g. we eliminated leash law violations)
 
 
 ```{r subset, echo=FALSE, results="hide"}
@@ -67,14 +69,23 @@ arrests4 <- arrests2 %>%
             DESCRIPTION != "Attending Or Kindling Bonfires " )
 
 arrests5 <- arrests4 %>%
-  subset(HOUR == 21:23 |
+  subset(HOUR == 23 |
            HOUR == 0:4) 
 
 arrests <- arrests5
 rm(arrests2, arrests3, arrests4, arrests5)
+
+assault <- arrests %>%
+  subset(CATEGORY == "Simple Assault")
+
+disorder <-  arrests %>%
+  subset(CATEGORY == "Disorderly Conduct")
+
 ```
 
-## Subset liquor licenses
+## Subsetting liquor licenses
+
+Next, we narrowed down liquor licensed locations to bars, taverns, and arenas. This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
 
 ```{r liquor, results="hide"}
 
@@ -96,7 +107,9 @@ liquor <- liquor2
 rm(liquor2)
 ```
 
-## Plot arrests and bar locations 
+## Plottings disorderly conduct, simple assault and bar locations 
+
+Next, we plotting simple choropleths to assess visually if the locations of bars and arrests seemed related
 
 ```{r plotting}
 library(sf) 
@@ -104,26 +117,129 @@ library(dplyr)
 library(httr)
 library(gridExtra)
 
-hoods<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
-
-grid.arrange(
-ggplot(data=hoods) + geom_sf(aes(fill=Shape_Area)) +
-theme_void() + labs(title="title"))
+nbh<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
 
 
-#? hoods.arrests <- left_join(hoods, arrests, by = "OBJECTID")
+plot.disorder <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for disorderly conduct\n+ bar locations (2018)") 
 
-plot <- ggplot(data=hoods) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2018)") 
+plot.disorder + 
+  geom_point(data=disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="blue") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
 
-plot + geom_point(data=arrests, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
-  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="blue")
+
+plot.assault <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\n+ bar locations (2018)") 
+
+plot.assault + 
+  geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
+
+plot.both <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2018)") 
+
+plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
+  geom_point(data=disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="blue") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
 
 
 
 ```
 
+## Running spatial cross-correlation
 
-```{r autocorelation}
+In geospatial analysis, spatial correlation comes in two varieties: spatial autocrroelation and spatial cross-correlation. The former measures the relationship between one variable and itself (intra-sample correlation), while the latter measures the relationship between two variables (inter-sample correlation). Because we are interested in two variables here: bars and crime incidents, we will use spatial cross-correlation.(1)  
+
+We are currently in the process of running this final step. 
+
+
+Source
+ 1. Chen, Yanguang. "A new methodology of spatial cross-correlation analysis." PloS one 10, no. 5 (2015).
+
+```{r spatial cross-correlation from Chen(2015)}
+
+   
+assault$LATITUDE <-assault$OFFENSE_LATITUDE
+assault$LONGITUDE <-assault$OFFENSE_LONGITUDE
+disorder$LATITUDE <-disorder$OFFENSE_LATITUDE
+disorder$LONGITUDE <-disorder$OFFENSE_LONGITUDE
+
+liquor.assault <- left_join(liquor,assault, 
+                            by = c("LATITUDE"="LATITUDE", "LONGITUDE"="LONGITUDE"))
+liquor.assault.disorder <- left_join(liquor.assault,disorder, 
+                                     by = c("LATITUDE"="LATITUDE", "LONGITUDE"="LONGITUDE"))
+
 
 ```
 
+
+
+  data(meuse)
+    coordinates(meuse) <- ~x+y  
+ 
+  #### Providing a neighbor contiguity spatial weights matrix
+  all.linked <- max(unlist(nbdists(knn2nb(knearneigh(coordinates(meuse))), 
+                    coordinates(meuse))))  
+  nb <- nb2listw(dnearneigh(meuse, 0, all.linked), style = "B", zero.policy = TRUE)  
+    Wij <- as.matrix( as(nb, "symmetricMatrix") ) 	
+   ( I <- crossCorrelation(meuse$zinc, meuse$copper, w = Wij, 
+                           clust=TRUE, k=99) )
+    meuse$lisa <-  I$SCI[,"lsci.xy"]
+    meuse$lisa.clust <- as.factor(I$cluster)
+      spplot(meuse, "lisa")
+      spplot(meuse, "lisa.clust") 
+   
+  #### Using a default spatial weights matrix method (inverse power function)
+  ( I <- crossCorrelation(meuse$zinc, meuse$copper, coords = coordinates(meuse), 
+                          clust = TRUE, k=99) )
+    meuse$lisa <- I$SCI[,"lsci.xy"]
+    meuse$lisa.clust <- as.factor(I$cluster)
+      spplot(meuse, "lisa")
+      spplot(meuse, "lisa.clust")	  
+
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+  #### Simulate spatially autocorrelated random normal variables 
+  ####   using eigen-decomposition, requires ncf package
+  library(sp)
+  library(ncf)
+  x=expand.grid(1:20, 1:20)[,1]
+  y=expand.grid(1:20, 1:20)[,2]
+  sdat <- data.frame(x =x,y=y,
+                    z1=ncf::rmvn.spa(x=x, y=y, p=2, method="exp"),
+                    z2=ncf::rmvn.spa(x=x, y=y, p=2, method="exp"))  
+  coordinates(sdat) <- ~x+y
+  ( I <- crossCorrelation(sdat$z1, sdat$z2, coords=coordinates(sdat), 
+                          k=99, clust = TRUE) )
+    sdat$lisa <- I$SCI[,"lsci.xy"]
+    sdat$lisa.clust <- as.factor(I$cluster)
+      spplot(sdat, "lisa")
+      spplot(sdat, "lisa.clust")    
+    
+  #### 1st order polygon contingency example 
+  ####   requires UScensus2000tract package
+  library(sp)
+  library(spdep)
+  library(UScensus2000tract)
+  
+  data(oregon.tract)
+  nb <- spdep::nb2listw(poly2nb(oregon.tract), style = "B", zero.policy = TRUE)
+    Wij <- as.matrix( as(nb, "symmetricMatrix") )
+  
+  X = oregon.tract$white
+  Y = oregon.tract$black  
+    
+  # Simulated bivariate lisa
+  I <- crossCorrelation(X, Y, w=Wij, k=99)
+  oregon.tract$lisa <-I$SCI[,"lsci.xy"]
+  oregon.tract$lisa.clust <- as.factor(I$cluster)
+    spplot(oregon.tract, "lisa")
+    spplot(oregon.tract, "lisa.clust")   
+# }
+# NOT RUN {
+# }
