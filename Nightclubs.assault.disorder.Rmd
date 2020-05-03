@@ -23,6 +23,7 @@ library(GWmodel)
 library(gridExtra)
 library(httr)
 library(sp)
+
 ```
 
 ## Loading data
@@ -163,10 +164,10 @@ arrests_liquor_pts<-full_join(arrests, liquor, by= c("LONGITUDE","LATITUDE"))
 arrests_liquor_pts<- st_as_sf(arrests_liquor_pts,
                        coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
 
-rm(arrests)
-rm(assault)
-rm(disorder)
-rm(liquor)
+#rm(arrests)
+#rm(assault)
+#rm(disorder)
+#rm(liquor)
 ```
 
 
@@ -174,6 +175,7 @@ rm(liquor)
 ```{r more variables}
 tracts_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
 tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT"))
+#tracts_shp<-tracts_shp[-c(12),] #may want to delete tract 2.02 later, the one missing income data
 
 pop_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
 pop_shp$tot_pop<-pop_shp$B01001_001
@@ -186,6 +188,11 @@ pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", 
 income_shp <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Median_Household_Income_Variables_Tract-shp/c9ca5f40-0f43-4de6-a527-28440f3bdf132020330-1-9idood.na0x.shp")
 income_shp$med_hh_income<-income_shp$B19049_001
 income_shp<-subset(income_shp, select=c("geometry", "med_hh_income", "NAME", "GEOID"))
+#data missing on income for 2 tracts, use data from census website for one tract, 
+income_shp$med_hh_income[is.na(income_shp1$med_hh_income)] <- 174999 
+#delete the other tract for which there is no data available 
+income_shp<-income_shp[-c(2),]
+
 
 
 #get tract names to match up between population data set and census tract data set 
@@ -193,6 +200,7 @@ pop_shp$TRACT<-substring(pop_shp$GEOID, 6)
 pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", "mf_ratio", "TRACT"))
 income_shp$TRACT<-substring(income_shp$GEOID, 6)
 income_shp<-subset(income_shp, select=c("med_hh_income", "TRACT"))
+pop_shp<-pop_shp[-c(2),]
 
 income_shp <-as.data.frame(income_shp)
 pop_shp<-as.data.frame(pop_shp)
@@ -202,16 +210,27 @@ IVs<-IVs %>% st_sf(sf_column_name = 'geometry.x')
 IVs$geometry<-IVs$geometry.x
 
 
-                
+arrests_sf<- st_as_sf(arrests,
+                       coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+liquor_sf<- st_as_sf(liquor,
+                       coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
 
 
+(IVs$arrest_count <- lengths(st_intersects(tracts_shp, arrests_sf)))
+(IVs$liquor_count <- lengths(st_intersects(tracts_shp, liquor_sf)))
+
+IVs$geometry.x <-NULL
+IVs$geometry.y <-NULL
 
 
 ```
 
-```{r create arrests per tract and liquor locations per tract, join to}
 
-```
+Source for replacing missing data
+
+1. https://censusreporter.org/data/table/?table=B19001&primary_geo_id=14000US11001006202&geo_ids=14000US11001006202,16000US1150000,05000US11001,04000US11,01000US
+
 
 
 
@@ -221,12 +240,17 @@ IVs$geometry<-IVs$geometry.x
 
 ```{r OLS}
 
-reg.mod = as.formula(CATEGORY ~TYPE)
-mod.OLS = lm(reg.mod, data = join_sp)
+fit_1 <- lm(arrest_count ~ liquor_count + med_hh_income + tot_pop + male_pop + fem_pop + mf_ratio, data=IVs)
+
+str(fit_1)
+
+IVs$res_fit1 <- residuals(fit_1)
 
 
 
-EUDM <- gw.dist(coordinates(arrests_sp))
+
+
+
 
 
 ```
