@@ -25,6 +25,7 @@ library(httr)
 library(sp)
 library(methods)
 library(broom)
+library(tidycensus)
 ```
 
 ## Loading data
@@ -182,7 +183,7 @@ Next, we added the control variables ... [add]
 
 ```{r add control variables}
 tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
-tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT"))
+tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT", "SQ_MILES"))
 tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
 
 pop_shp<-st_read("./datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
@@ -320,3 +321,34 @@ p-value of Moran's I is not significant, therefore we cannot reject the null tha
 
 If Moran's I were significant, indicating the presence of spatial autocorrelation, we would need to do a spatial regression model.  
 
+```{r better controls}
+## Try a new model with better controls
+
+
+census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
+
+#Variables: 
+#median male age B01002_002E
+#total males 20-24 B01001H_008E	
+#total males 25-29 B01001H_009E	
+#unemployment rate total unmarried males not in labor force B12006_007E
+#total white B02001_002E
+#total black B02001_003E
+#total hispanic B03001_001E
+
+acs <-get_acs(geography = "tract", 
+          variables= c("B01002_002E", "B01001H_008E", "B01001H_009E", 
+                       "B12006_007E", "B02001_002E", "B02001_003E", "B03001_001E"),
+          year=2018, state="DC") 
+
+acs2<- gather(acs, name, TRACT) 
+acs2 <-spread(acs, variable, estimate)
+
+
+PC<- gather(PC, Year, Value, "2015":"2020") 
+PC <-spread(PC,Series,Value)
+
+#generate pop density variable
+
+
+```
