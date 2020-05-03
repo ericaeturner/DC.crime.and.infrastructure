@@ -8,7 +8,7 @@ output: html_document
 In our final project, we will be looking at the relationship between different types of infrastructure in DC and different types of crime using geospatial analysis. In this first piece of analysis, we look at the relationship between the locations of 
 
  1. Bars 
- 2. Simple assaults and disorderly conduct occurring late at night
+ 2. Simple assaults and disorderly conduct occurring late at night (10pm to 4am)
 
 
 ```{r setup, include=FALSE}
@@ -23,25 +23,26 @@ library(GWmodel)
 library(gridExtra)
 library(httr)
 library(sp)
-
+library(methods)
 ```
 
 ## Loading data
 
+Loading in csv for arrest data and liquor licensed locations from DC Open Data, both of which include longitude and latitude. 
 
-```{r load data and subset}
+```{r load data and subset,  results="hide"}
 arrests <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Adult_Arrests.csv")
 liquor <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Liquor_Licenses.csv")
 ```
 
 ## Subsetting arrests 
 
-Here, we narrowed down arrests to simple assaults and disorderly conduct, occurring in 2017, between the hours of 12am and 4am, and those not missing data for longitude or latitude. 
+Here, we narrowed down arrests to simple assaults and disorderly conduct, occurring in 2017, between the hours of 10am and 4am, and those not missing data for longitude or latitude. 
 
 We also narrowed down the types of disorderly conduct to those likely to happen as a result of intoxication (e.g. we eliminated leash law violations)
 
 
-```{r subset, echo=FALSE, results="hide"}
+```{r subsetting arrests,  results="hide"}
 unique(arrests$CATEGORY)
 
 arrests2 <- arrests %>%
@@ -90,16 +91,14 @@ assault <- arrests %>%
 disorder <-  arrests %>%
   subset(CATEGORY == "Disorderly Conduct")
 
-
 ```
-
 
 
 ## Subsetting liquor licenses
 
 Next, we narrowed down liquor licensed locations to bars, taverns, and arenas. This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
 
-```{r liquor, results="hide"}
+```{r subsetting liquor, results="hide" }
 unique(liquor$STATUS)
 liquor <- subset(liquor, STATUS == "Active" |
                    STATUS == "Issued")
@@ -120,9 +119,9 @@ rm(liquor2)
 
 ## Plotting disorderly conduct, simple assault and bar locations 
 
-Next, we plotting simple choropleths to assess visually if the locations of bars and arrests seemed related
+Next, we plotted simple choropleths to assess visually if the locations of bars and arrests seemed related
 
-```{r plotting}
+```{r some exploratory data analysis with ggplot}
 
 nbh<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
 
@@ -147,6 +146,11 @@ plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE
 
 ```
 
+## Joining arrests and liquor locations
+
+
+Next, we joined the data sets for liquor licensed locations with arrests, then converted it to a spatial format
+
 ```{r join arrests and bars and convert to sf}
 
 
@@ -170,12 +174,15 @@ arrests_liquor_pts<- st_as_sf(arrests_liquor_pts,
 #rm(liquor)
 ```
 
+## Adding control variables
+
+Next, we added the control variables ... [add]
 
 
-```{r more variables}
+```{r add control variables}
 tracts_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
 tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT"))
-#tracts_shp<-tracts_shp[-c(12),] #may want to delete tract 2.02 later, the one missing income data
+tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
 
 pop_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
 pop_shp$tot_pop<-pop_shp$B01001_001
@@ -188,11 +195,10 @@ pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", 
 income_shp <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Median_Household_Income_Variables_Tract-shp/c9ca5f40-0f43-4de6-a527-28440f3bdf132020330-1-9idood.na0x.shp")
 income_shp$med_hh_income<-income_shp$B19049_001
 income_shp<-subset(income_shp, select=c("geometry", "med_hh_income", "NAME", "GEOID"))
-#data missing on income for 2 tracts, use data from census website for one tract, 
-income_shp$med_hh_income[is.na(income_shp1$med_hh_income)] <- 174999 
-#delete the other tract for which there is no data available 
+#data missing on income for 2 tracts, use data from census website for one tract 
+income_shp$med_hh_income[is.na(income_shp$med_hh_income)] <- 174999 
+#delete the other tract for which there are no data available 
 income_shp<-income_shp[-c(2),]
-
 
 
 #get tract names to match up between population data set and census tract data set 
@@ -204,10 +210,10 @@ pop_shp<-pop_shp[-c(2),]
 
 income_shp <-as.data.frame(income_shp)
 pop_shp<-as.data.frame(pop_shp)
-IVs <- left_join(pop_shp, income_shp, by="TRACT")
+main <- left_join(pop_shp, income_shp, by="TRACT")
 
-IVs<-IVs %>% st_sf(sf_column_name = 'geometry.x')
-IVs$geometry<-IVs$geometry.x
+main<-main %>% st_sf(sf_column_name = 'geometry.x')
+main$geometry<-main$geometry.x
 
 
 arrests_sf<- st_as_sf(arrests,
@@ -217,11 +223,11 @@ liquor_sf<- st_as_sf(liquor,
                        coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
 
 
-(IVs$arrest_count <- lengths(st_intersects(tracts_shp, arrests_sf)))
-(IVs$liquor_count <- lengths(st_intersects(tracts_shp, liquor_sf)))
+(main$arrest_count <- lengths(st_intersects(tracts_shp, arrests_sf)))
+(main$liquor_count <- lengths(st_intersects(tracts_shp, liquor_sf)))
 
-IVs$geometry.x <-NULL
-IVs$geometry.y <-NULL
+main$geometry.x <-NULL
+main$geometry.y <-NULL
 
 
 ```
@@ -232,36 +238,44 @@ Source for replacing missing data
 1. https://censusreporter.org/data/table/?table=B19001&primary_geo_id=14000US11001006202&geo_ids=14000US11001006202,16000US1150000,05000US11001,04000US11,01000US
 
 
+## Regression and visual spatial autocorrelation
 
 
-"(a) each variable’s distribution characteristics and transform if necessary (as in part, addressed below), (b) the correlation matrix for the continuous variables and (c) conditional boxplots for the response’s relationship to any categorical or ordinal variable. All 3 forms of EDA should also include the detection of outliers. As the data are spatial, then inspecting the maps for all variables is recommended."
+```{r regression and spatial autocorrelation}
+#Regression
+fit_1 <- lm(arrest_count ~ liquor_count + med_hh_income + tot_pop + male_pop + fem_pop + mf_ratio, data=main)
 
+#Visual test of spatial autocorrelation, using rersiduals
+main$res_fit1 <- residuals(fit_1)
+main$fitted_fit1 <- fitted(fit_1)
 
+main$sd_breaks <- scale(main$res_fit1)[,1]
+summary(main$sd_breaks)
+my_breaks <- c(14,-3,-2,-1,1,2,3,14) #not sure if we need this 
 
-```{r OLS}
-
-fit_1 <- lm(arrest_count ~ liquor_count + med_hh_income + tot_pop + male_pop + fem_pop + mf_ratio, data=IVs)
-
-str(fit_1)
-
-IVs$res_fit1 <- residuals(fit_1)
-
-
-
-
-
-
-
+ggplot(data=main) + 
+  scale_fill_gradient2(breaks=my_breaks,
+                       low = "springgreen4",
+                       mid = "white",
+                       high = "red",)+
+  geom_sf(aes(fill=sd_breaks, geometry=geometry)) + 
+  labs(title="residuals") 
 
 ```
 
+Definitely spatial autocorrelation of both over-prediction (green) and under-prediction (red) going on 
 
 
+Sources for regression
 
+1. https://maczokni.github.io/crimemapping_textbook_bookdown/spatial-regression-models.html#introduction-3
 
+## Formal test for spatial autocorrelation
 
+```{r spatial autocorrelation cont.}
+#Formal test of spatial autocorrelation
 
-
+```
 
 
 
