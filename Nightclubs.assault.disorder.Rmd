@@ -24,6 +24,7 @@ library(gridExtra)
 library(httr)
 library(sp)
 library(methods)
+library(broom)
 ```
 
 ## Loading data
@@ -241,10 +242,28 @@ Source for replacing missing data
 ## Regression and visual spatial autocorrelation
 
 
-```{r regression and spatial autocorrelation}
-#Regression
+```{r regression}
+#OLS regression
 fit_1 <- lm(arrest_count ~ liquor_count + med_hh_income + tot_pop + male_pop + fem_pop + mf_ratio, data=main)
 
+#coefficients
+head(fit_1$coefficients)
+#p-values
+summary(fit_1)$coefficients[,4]  
+#r-squared
+summary(fit_1)$r.squared
+
+#Alternative way to look at OLS results with broom package
+broom_summary<-tidy(fit_1)
+broom_summary
+
+
+```
+
+Only liquor location count is significant
+
+
+```{r spatial autocorrelation}
 #Visual test of spatial autocorrelation, using rersiduals
 main$res_fit1 <- residuals(fit_1)
 main$fitted_fit1 <- fitted(fit_1)
@@ -263,7 +282,7 @@ ggplot(data=main) +
 
 ```
 
-Definitely spatial autocorrelation of both over-prediction (green) and under-prediction (red) going on 
+Not quite sure if there is spatial autocorrelation of either over-prediction (green) or under-prediction (red) going on. 
 
 
 Sources for regression
@@ -274,11 +293,30 @@ Sources for regression
 
 ```{r spatial autocorrelation cont.}
 #Formal test of spatial autocorrelation
+main_sf<- st_sf(main,
+                sf_column_name = c("geometry"))
+
+main_sp <- as(main_sf, "Spatial")
+
+#Then we create a list of neighbours using the Queen criteria
+w <- poly2nb(main_sp, row.names=main_sp$TRACT)
+summary(w)
+```
+
+The summary of "w" describes the distribution of connectedness across our data. Tracts have an average of almost 6 neighbors.  
+
+Next, we created a row standardize spatial weight matrix and the Moran Scatterplot. [describe what these are]
+
+```{r spatial weight matrix and Moran Scatterplot}
+
+wm <- nb2mat(w, style='B')
+rwm <- mat2listw(wm, style='W')
+
+lm.morantest(fit_1, rwm, alternative="two.sided")
 
 ```
 
+p-value of Moran's I is not significant, therefore we cannot reject the null that arrests for assault and disorderly conduct are randomly distributed throughout Census tracts in DC.
 
-
-
-
+If Moran's I were significant, indicating the presence of spatial autocorrelation, we would need to do a spatial regression model.  
 
