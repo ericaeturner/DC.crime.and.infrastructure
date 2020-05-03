@@ -13,3 +13,6 @@
 *.shp
 *.shx
 *.xml
+.Rproj.user
+.Rhistory
+datasets/*

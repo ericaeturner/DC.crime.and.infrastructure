@@ -32,8 +32,8 @@ library(broom)
 Loading in csv for arrest data and liquor licensed locations from DC Open Data, both of which include longitude and latitude. 
 
 ```{r load data and subset,  results="hide"}
-arrests <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Adult_Arrests.csv")
-liquor <-read.csv("/Users/Erica/Desktop/Data-Science/final.project/datasets/Liquor_Licenses.csv")
+arrests <-read.csv("./datasets/Adult_Arrests.csv")
+liquor <-read.csv("./datasets/Liquor_Licenses.csv")
 ```
 
 ## Subsetting arrests 
@@ -124,7 +124,7 @@ Next, we plotted simple choropleths to assess visually if the locations of bars 
 
 ```{r some exploratory data analysis with ggplot}
 
-nbh<- st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
+nbh<- st_read("./datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
 
 plot.disorder <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for disorderly conduct\n+ bar locations (2018)") 
 
@@ -181,11 +181,11 @@ Next, we added the control variables ... [add]
 
 
 ```{r add control variables}
-tracts_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
+tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
 tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT"))
 tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
 
-pop_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
+pop_shp<-st_read("./datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
 pop_shp$tot_pop<-pop_shp$B01001_001
 pop_shp$male_pop<-pop_shp$B01001_002
 pop_shp$fem_pop<-pop_shp$B01001_042
@@ -193,7 +193,7 @@ pop_shp$mf_ratio<-pop_shp$B01001_cal
 pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", "mf_ratio", "NAME", "GEOID"))
 
 
-income_shp <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Median_Household_Income_Variables_Tract-shp/c9ca5f40-0f43-4de6-a527-28440f3bdf132020330-1-9idood.na0x.shp")
+income_shp <-st_read("./datasets/ACS_2018_Median_Household_Income_Variables_Tract-shp/c9ca5f40-0f43-4de6-a527-28440f3bdf132020330-1-9idood.na0x.shp")
 income_shp$med_hh_income<-income_shp$B19049_001
 income_shp<-subset(income_shp, select=c("geometry", "med_hh_income", "NAME", "GEOID"))
 #data missing on income for 2 tracts, use data from census website for one tract 
