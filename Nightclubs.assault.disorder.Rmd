@@ -1,14 +1,15 @@
 ---
-title: "Spatial cross-correlation between bar locations and assault + disorderly conduct"
+title: "Spatial regression between on-premise liquor licensed locations and crime"
 author: "Erica Turner"
 date: "4/25/2020"
 output: html_document
 ---
 
-In our final project, we will be looking at the relationship between different types of infrastructure in DC and different types of crime using geospatial analysis. In this first piece of analysis, we look at the relationship between the locations of 
+In our final project, we looked at the relationship between certain businesses in Washington DC and certain types of crimes occuring late at night (10pm-4am). More specifically we looked at the relationship between on-premise liquor licensed locations  (e.g. bars, taverns, arenas) and crime incidents falling under the categories of simple assault and disorderly conduct. 
 
- 1. Bars 
- 2. Simple assaults and disorderly conduct occurring late at night (10pm to 4am)
+[more on spatial nature of this research question  ]
+
+Our hypothesis going into this research was that crime would be positively associated with the presence of on-premise liquor licensed locations.
 
 
 ```{r setup, include=FALSE}
@@ -26,11 +27,21 @@ library(sp)
 library(methods)
 library(broom)
 library(tidycensus)
+library(stringr)
 ```
 
 ## Loading data
 
-Loading in csv for arrest data and liquor licensed locations from DC Open Data, both of which include longitude and latitude. 
+We first loaded in data sets for arrests and for liquor licensed locations from DC Open Data. 
+
+For the arrests data set, we ignored the location of where the arrest occured and focused instead on the location of the offense itself, since people may have been arrested far from where the incident occured. This data set has drawbacks however, since it only records incidents for which there was an arrest made, which introduces bias. For instance, police may have had more success tracking down black offenders, since majority-black neighborhoods in DC are more heavily policed and more equipped with CCTV cameras. Moreover, black Washingtonians are disproportionately stopped and arrested across DC neighborhoods, especially for minor offenses (which disorderly conduct qualifies as). (1)(2)
+
+
+Source 
+
+1. https://opendata.dc.gov/datasets/closed-circuit-tv-street-cameras?geometry=-77.375%2C38.787%2C-76.634%2C38.974
+2. https://wamu.org/story/19/05/14/aclu-study-finds-d-c-s-black-residents-arrested-at-higher-rate-for-largely-minor-offenses/
+
 
 ```{r load data and subset,  results="hide"}
 arrests <-read.csv("./datasets/Adult_Arrests.csv")
@@ -42,6 +53,8 @@ liquor <-read.csv("./datasets/Liquor_Licenses.csv")
 Here, we narrowed down arrests to simple assaults and disorderly conduct, occurring in 2017, between the hours of 10am and 4am, and those not missing data for longitude or latitude. 
 
 We also narrowed down the types of disorderly conduct to those likely to happen as a result of intoxication (e.g. we eliminated leash law violations)
+
+[Limitation: liquor licensed locations data set is a living document, so the data are from 2020 whereas arrests data are from 2017]
 
 
 ```{r subsetting arrests,  results="hide"}
@@ -98,7 +111,7 @@ disorder <-  arrests %>%
 
 ## Subsetting liquor licenses
 
-Next, we narrowed down liquor licensed locations to bars, taverns, and arenas. This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
+Next, we narrowed down liquor licensed locations to those that are on-premise (bars, taverns, and arenas). This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
 
 ```{r subsetting liquor to on-premise locations, results="hide" }
 unique(liquor$STATUS)
@@ -141,7 +154,6 @@ plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE
 ```
 
 ## Joining arrests and liquor locations
-
 
 Next, we joined the data sets for liquor licensed locations with arrests, then converted it to a spatial format
 
@@ -254,11 +266,16 @@ main<- mutate(main, popdens = tot_pop/SQ_MILES)
 
 ## Regression and visual spatial autocorrelation
 
+[add description]
+
 ```{r regression}
 #OLS regression
+main_sf<- st_sf(main,
+                sf_column_name = c("geometry"))
+
 fit_1 <- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
               tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
-              tot_white + tot_black + tot_hisp + popdens, data=main)
+              tot_white + tot_black + tot_hisp + popdens, data=main_sf)
 
 #r-squared
 summary(fit_1)$r.squared
@@ -269,19 +286,21 @@ broom_summary
 
 ```
 
-Only liquor location count is significant
+In this simple OLS specfication,  only liquor location count and total black population are significant.
+
+[mention racial bias again]
 
 
 ```{r spatial autocorrelation}
 #Visual test of spatial autocorrelation, using rersiduals
-main$res_fit1 <- residuals(fit_1)
-main$fitted_fit1 <- fitted(fit_1)
+main_sf$res_fit1 <- residuals(fit_1)
+main_sf$fitted_fit1 <- fitted(fit_1)
 
-main$sd_breaks <- scale(main$res_fit1)[,1]
-summary(main$sd_breaks)
+main_sf$sd_breaks <- scale(main_sf$res_fit1)[,1]
+summary(main_sf$sd_breaks)
 my_breaks <- c(14,-3,-2,-1,1,2,3,14) #not sure if we need this 
 
-ggplot(data=main) + 
+ggplot(data=main_sf) + 
   scale_fill_gradient2(breaks=my_breaks,
                        low = "springgreen4",
                        mid = "white",
@@ -291,20 +310,13 @@ ggplot(data=main) +
 
 ```
 
-Not quite sure if there is spatial autocorrelation of either over-prediction (green) or under-prediction (red) going on. 
+It is unclear from this plot if there is spatial autocorrelation of either over-prediction (green) or under-prediction (red) going on. A more formal test for spatial autocorrelation is needed.
 
-
-Sources for regression
-
-1. https://maczokni.github.io/crimemapping_textbook_bookdown/spatial-regression-models.html#introduction-3
 
 ## Formal test for spatial autocorrelation
 
 ```{r spatial autocorrelation cont.}
 #Formal test of spatial autocorrelation
-main_sf<- st_sf(main,
-                sf_column_name = c("geometry"))
-
 main_sp <- as(main_sf, "Spatial")
 
 #Then we create a list of neighbours using the Queen criteria
@@ -331,34 +343,122 @@ This indicates the presence of spatial autocorrelation, so we therefore need to 
 
 ## Sub-regional analysis 
 
+[Describe why some researchers choose to do multiple spatial regressions for different sub-regions. See Chapter 9]
+[See also Baller et. al 2001: STRUCTURAL COVARIATES OF U.S. COUNTY HOMICIDE RATES: INCORPORATING SPATIAL EFFECTS]
 
-```{r sub region analysis}
+```{r sub region analysis on quads}
 
-quads<-st_read("./datasets/DC_Quadrants-shp/eb24d650-e20e-43b7-87de-6a603c970342202043-1-v0zhf7.oyql.shp")
+quads<-st_read("./datasets/quadrants.csv")
+quads$TRACT<-as.numeric(quads$TRACT)
+main_sf$TRACT <-as.numeric(main_sf$TRACT)
+main_sf<-left_join(main_sf, quads, by="TRACT")
 
-within_ward <- st_join(tracts_shp, quads, join = st_intersects)
-within_ward<-subset(within_ward, select=c("QUADRANT", "TRACT"))
-within_ward$geometry<-NULL
+#verify quadrant coding worked
+ggplot(data=main_sf) +
+  geom_sf(aes(fill=as.factor(QUAD))) #tiny bit of overlap b/c quads don't line up perfectly with tracts
 
-main<-left_join(main, within_ward, by="TRACT")
-
-ggplot(main, aes(x = res_fit1, colour = as.factor(QUADRANT))) + 
+ggplot(main_sf, aes(x = res_fit1, colour = as.factor(QUAD))) + 
   geom_density() 
 
-#Lagrange multipliers 
+
+
+
+```
+
+Some interesting differences among quadrants. 
+
+[more interpreation]
+
+
+```{r lagrange multipliers}
+#subset quads
+main_NW_sf <- subset(main_sf, QUAD == "NW")
+main_NE_sf <- subset(main_sf, QUAD == "NE")
+main_SW_sf <- subset(main_sf, QUAD == "SW")
+main_SE_sf <- subset(main_sf, QUAD == "SE")
+
+#Turn sf into sp
+main_NW_sp <- as(main_NW_sf , "Spatial")
+main_NE_sp <- as(main_NE_sf , "Spatial")
+main_SW_sp <- as(main_SW_sf , "Spatial")
+main_SE_sp <- as(main_SE_sf , "Spatial")
+
+
+
+
+#Then we create a list of neighbours using the Queen criteria
+w_NW <- poly2nb(main_NW_sp, row.names=main_NW_sp$TRACT)
+
+wm_NW <- nb2mat(w_NW, style='B')
+rwm_NW <- mat2listw(wm_NW, style='W')
+
+fit_NW<- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main_NW_sf)
+
+
+
+#NE neighbors
+w_NE <- poly2nb(main_NE_sp, row.names=main_NE_sp$TRACT)
+
+wm_NE <- nb2mat(w_NE, style='B')
+rwm_NE <- mat2listw(wm_NE, style='W')
+
+fit_NE<- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main_NE_sf)
+
+
+#SW neighbors
+w_SW <- poly2nb(main_SW_sp, row.names=main_SW_sp$TRACT)
+
+wm_SW <- nb2mat(w_SW, style='B')
+rwm_SW <- mat2listw(wm_SW, style='W')
+
+fit_SW<- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main_SW_sf)
+
+
+#SE neighbors
+w_SE <- poly2nb(main_SE_sp, row.names=main_SE_sp$TRACT)
+
+wm_SE <- nb2mat(w_SE, style='B')
+rwm_SE <- mat2listw(wm_SE, style='W')
+
+fit_SE<- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main_SE_sf)
+
+
+
 ```
 
 
+```{r morans I by quad}
+
+lm.morantest(fit_NW, rwm_NW, alternative="two.sided")
+
+lm.morantest(fit_NE, rwm_NE, alternative="two.sided")
+
+lm.morantest(fit_SW, rwm_SW, alternative="two.sided") #not sure what happened here, sample size too small?
+
+lm.morantest(fit_SE, rwm_SE, alternative="two.sided") 
+
+```
+
+P-value is not significant for NW, NE, and SE. No need to run multiple spatially lagged models for each quadrant. Can proceed with one spatially lagged model for all of DC. 
 
 
 ```{r spatially lagged model}
+#Then we create a list of neighbours using the Queen criteria
+fit_lagged <- errorsarlm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main_sf, rwm)
 
-#fit_2_lag <- lagsarlm(arrests_count ~ liquor_count + tot_pop + med_male_age +
-              #tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
-              #tot_white + tot_black + tot_hisp + popdens, data=main, w)
-
-
-
-#summary(fit_2_lag)
+summary(fit_lagged)
 
 ```
+
+Here, only liquor licensed locations is significant, whereas with the simple OLS model both liquor licensed locations and total black population were signifcant. 
+
