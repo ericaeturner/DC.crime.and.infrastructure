@@ -26,6 +26,7 @@ library(sp)
 library(methods)
 library(broom)
 library(tidycensus)
+library(GISTools)
 ```
 
 ## Loading data
@@ -100,7 +101,7 @@ disorder <-  arrests %>%
 
 Next, we narrowed down liquor licensed locations to bars, taverns, and arenas. This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
 
-```{r subsetting liquor, results="hide" }
+```{r subsetting liquor to on-premise locations, results="hide" }
 unique(liquor$STATUS)
 liquor <- subset(liquor, STATUS == "Active" |
                    STATUS == "Issued")
@@ -116,7 +117,9 @@ liquor2[!is.na(liquor2$LONGITUDE),]
 liquor2[!is.na(liquor2$LATITUDE),]  
 
 liquor <- liquor2
+
 rm(liquor2)
+
 ```
 
 ## Plotting disorderly conduct, simple assault and bar locations 
@@ -124,27 +127,16 @@ rm(liquor2)
 Next, we plotted simple choropleths to assess visually if the locations of bars and arrests seemed related
 
 ```{r some exploratory data analysis with ggplot}
-
-nbh<- st_read("./datasets/Neighborhood_Clusters/Neighborhood_Clusters.shp")
-
-plot.disorder <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for disorderly conduct\n+ bar locations (2018)") 
-
-plot.disorder + 
-  geom_point(data=disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="blue") +
-  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
+tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
+tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT", "SQ_MILES"))
+#tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
 
 
-plot.assault <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\n+ bar locations (2018)") 
+plot.both <- ggplot(data=tracts_shp) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2017)") 
 
-plot.assault + 
-  geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
-  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
-
-plot.both <- ggplot(data=nbh) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2018)") 
-
-plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="red") +
-  geom_point(data=disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .5, alpha= .5, color="blue") +
-  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .5, alpha= .5, color="black")
+plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .2, alpha= .5, color="red") +
+  geom_point(data=disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = .2, alpha= .5, color="blue") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = .2, alpha= .5, color="black")
 
 ```
 
@@ -154,8 +146,6 @@ plot.both + geom_point(data=assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE
 Next, we joined the data sets for liquor licensed locations with arrests, then converted it to a spatial format
 
 ```{r join arrests and bars and convert to sf}
-
-
 arrests<-arrests[!is.na(arrests$OFFENSE_LONGITUDE),]
 arrests<-arrests[!is.na(arrests$OFFENSE_LATITUDE),]
 
@@ -165,10 +155,12 @@ arrests$LATITUDE<-arrests$OFFENSE_LATITUDE
 arrests$LONGITUDE<-arrests$OFFENSE_LONGITUDE
 arrests<-subset(arrests, select=c("YEAR", "DATE_", "HOUR", "CATEGORY", "LATITUDE", "LONGITUDE"))
 
-arrests_liquor_pts<-full_join(arrests, liquor, by= c("LONGITUDE","LATITUDE"))
-
-arrests_liquor_pts<- st_as_sf(arrests_liquor_pts,
+arrests_sf<- st_as_sf(arrests,
                        coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+liquor_sf<- st_as_sf(liquor,
+                       coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
 
 #rm(arrests)
 #rm(assault)
@@ -178,86 +170,96 @@ arrests_liquor_pts<- st_as_sf(arrests_liquor_pts,
 
 ## Adding control variables
 
-Next, we added the control variables ... [add]
+Next, we added a variety of control variables by tract including median male, ... [add]
 
+```{r add controls}
+census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
 
-```{r add control variables}
-tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
-tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT", "SQ_MILES"))
-tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
+#Variables: 
+#median male age B01002_002E
+#total males 20-24 B01001H_008E	
+#total males 25-29 B01001H_009E	
+#total unmarried males not in labor force B12006_007E
+#total white B02001_002E
+#total black B02001_003E
+#total hispanic B03001_001E
+
+acs <-get_acs(geography = "tract", 
+          variables= c("B01002_002E", "B01001H_008E", "B01001H_009E", 
+                       "B12006_007E", "B02001_002E", "B02001_003E", "B03001_001E"),
+          year=2018, state="DC") 
+
+acs<-subset(acs, select=c("estimate", "GEOID", "variable"))
+acs<-spread(acs, variable, estimate)
+
+acs$med_male_age<-acs$B01002_002
+acs$tot_males_20_24<-acs$B01001H_008	
+acs$tot_males_25_29<-acs$B01001H_009
+acs$tot_males_not_labforce<-acs$B12006_007
+acs$tot_white<-acs$B02001_002
+acs$tot_black<-acs$B02001_003
+acs$tot_hisp<-acs$B03001_001
 
 pop_shp<-st_read("./datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
 pop_shp$tot_pop<-pop_shp$B01001_001
-pop_shp$male_pop<-pop_shp$B01001_002
-pop_shp$fem_pop<-pop_shp$B01001_042
-pop_shp$mf_ratio<-pop_shp$B01001_cal
-pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", "mf_ratio", "NAME", "GEOID"))
-
-
-income_shp <-st_read("./datasets/ACS_2018_Median_Household_Income_Variables_Tract-shp/c9ca5f40-0f43-4de6-a527-28440f3bdf132020330-1-9idood.na0x.shp")
-income_shp$med_hh_income<-income_shp$B19049_001
-income_shp<-subset(income_shp, select=c("geometry", "med_hh_income", "NAME", "GEOID"))
-#data missing on income for 2 tracts, use data from census website for one tract 
-income_shp$med_hh_income[is.na(income_shp$med_hh_income)] <- 174999 
-#delete the other tract for which there are no data available 
-income_shp<-income_shp[-c(2),]
+pop_shp$area<-pop_shp$Shape__Are
+pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "NAME", "GEOID", "area"))
 
 
 #get tract names to match up between population data set and census tract data set 
 pop_shp$TRACT<-substring(pop_shp$GEOID, 6)
-pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "male_pop", "fem_pop", "mf_ratio", "TRACT"))
-income_shp$TRACT<-substring(income_shp$GEOID, 6)
-income_shp<-subset(income_shp, select=c("med_hh_income", "TRACT"))
-pop_shp<-pop_shp[-c(2),]
+pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "TRACT", "area"))
+acs$TRACT<-substring(acs$GEOID, 6)
+acs<-subset(acs, select=c("med_male_age", "tot_males_20_24", 
+                          "tot_males_25_29", "tot_males_not_labforce", 
+                          "tot_white", "tot_black", "tot_hisp", "TRACT"))
 
-income_shp <-as.data.frame(income_shp)
+#population as df to enable join with acs
 pop_shp<-as.data.frame(pop_shp)
-main <- left_join(pop_shp, income_shp, by="TRACT")
-
-main<-main %>% st_sf(sf_column_name = 'geometry.x')
-main$geometry<-main$geometry.x
 
 
-arrests_sf<- st_as_sf(arrests,
-                       coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+#create new variables of arrests per tract and liquor stores per tract
+arrests_in_tract <- st_join(arrests_sf, tracts_shp, join = st_within)
+arrests_count <- count(as_tibble(arrests_in_tract), TRACT) %>%
+  print()
 
-liquor_sf<- st_as_sf(liquor,
-                       coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
-
-
-(main$arrest_count <- lengths(st_intersects(tracts_shp, arrests_sf)))
-(main$liquor_count <- lengths(st_intersects(tracts_shp, liquor_sf)))
-
-main$geometry.x <-NULL
-main$geometry.y <-NULL
+liquor_in_tract <- st_join(liquor_sf, tracts_shp, join = st_within)
+liquor_count <- count(as_tibble(liquor_in_tract), TRACT) %>%
+  print()
 
 
+main <- left_join(pop_shp, acs, by="TRACT")
+main<-left_join(main, arrests_count, by="TRACT", all.x=TRUE)
+main$arrests_count <- main$n
+main$n <-NULL
+main$arrests_count[is.na(main$arrests_count)] <- 0
+
+main<-left_join(main, liquor_count, by="TRACT", all.x=TRUE)
+main$liquor_count <- main$n
+main$n <-NULL
+main$liquor_count[is.na(main$liquor_count)] <- 0
+
+#generate pop density variable
+main<- mutate(main, popdens = tot_pop/area)
+
+#delete the tract that's missing data
+main<-main[-c(68),]
 ```
-
-
-Source for replacing missing data
-
-1. https://censusreporter.org/data/table/?table=B19001&primary_geo_id=14000US11001006202&geo_ids=14000US11001006202,16000US1150000,05000US11001,04000US11,01000US
-
 
 ## Regression and visual spatial autocorrelation
 
-
 ```{r regression}
 #OLS regression
-fit_1 <- lm(arrest_count ~ liquor_count + med_hh_income + tot_pop + male_pop + fem_pop + mf_ratio, data=main)
+fit_1 <- lm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              tot_white + tot_black + tot_hisp + popdens, data=main)
 
-#coefficients
-head(fit_1$coefficients)
-#p-values
-summary(fit_1)$coefficients[,4]  
 #r-squared
 summary(fit_1)$r.squared
 
 #Alternative way to look at OLS results with broom package
 broom_summary<-tidy(fit_1)
 broom_summary
-
 
 ```
 
@@ -317,38 +319,12 @@ lm.morantest(fit_1, rwm, alternative="two.sided")
 
 ```
 
-p-value of Moran's I is not significant, therefore we cannot reject the null that arrests for assault and disorderly conduct are randomly distributed throughout Census tracts in DC.
+p-value of Moran's I is significant, therefore we can reject the null that arrests for assault and disorderly conduct are randomly distributed throughout Census tracts in DC.
 
-If Moran's I were significant, indicating the presence of spatial autocorrelation, we would need to do a spatial regression model.  
+This indicates the presence of spatial autocorrelation, so we therefore need to do a spatial regression model.  
 
 ```{r better controls}
 ## Try a new model with better controls
-
-
-census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
-
-#Variables: 
-#median male age B01002_002E
-#total males 20-24 B01001H_008E	
-#total males 25-29 B01001H_009E	
-#unemployment rate total unmarried males not in labor force B12006_007E
-#total white B02001_002E
-#total black B02001_003E
-#total hispanic B03001_001E
-
-acs <-get_acs(geography = "tract", 
-          variables= c("B01002_002E", "B01001H_008E", "B01001H_009E", 
-                       "B12006_007E", "B02001_002E", "B02001_003E", "B03001_001E"),
-          year=2018, state="DC") 
-
-acs2<- gather(acs, name, TRACT) 
-acs2 <-spread(acs, variable, estimate)
-
-
-PC<- gather(PC, Year, Value, "2015":"2020") 
-PC <-spread(PC,Series,Value)
-
-#generate pop density variable
 
 
 ```
