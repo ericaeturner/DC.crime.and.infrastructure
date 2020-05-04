@@ -26,7 +26,6 @@ library(sp)
 library(methods)
 library(broom)
 library(tidycensus)
-library(GISTools)
 ```
 
 ## Loading data
@@ -130,6 +129,7 @@ Next, we plotted simple choropleths to assess visually if the locations of bars 
 tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
 tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT", "SQ_MILES"))
 #tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
+
 
 
 plot.both <- ggplot(data=tracts_shp) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2017)") 
@@ -239,11 +239,17 @@ main$liquor_count <- main$n
 main$n <-NULL
 main$liquor_count[is.na(main$liquor_count)] <- 0
 
-#generate pop density variable
-main<- mutate(main, popdens = tot_pop/area)
-
 #delete the tract that's missing data
 main<-main[-c(68),]
+
+sq.miles<-subset(tracts_shp, select=c("TRACT", "SQ_MILES"))
+sq.miles$geometry <- NULL
+main<-left_join(main, sq.miles, by="TRACT")
+
+#generate pop density variable
+main<- mutate(main, popdens = tot_pop/SQ_MILES)
+
+#add more controls: proximity to university, to police station, below poverty line, distance from homeless shelter
 ```
 
 ## Regression and visual spatial autocorrelation
@@ -323,8 +329,36 @@ p-value of Moran's I is significant, therefore we can reject the null that arres
 
 This indicates the presence of spatial autocorrelation, so we therefore need to do a spatial regression model.  
 
-```{r spatial regression}
+## Sub-regional analysis 
 
 
+```{r sub region analysis}
+
+quads<-st_read("./datasets/DC_Quadrants-shp/eb24d650-e20e-43b7-87de-6a603c970342202043-1-v0zhf7.oyql.shp")
+
+within_ward <- st_join(tracts_shp, quads, join = st_intersects)
+within_ward<-subset(within_ward, select=c("QUADRANT", "TRACT"))
+within_ward$geometry<-NULL
+
+main<-left_join(main, within_ward, by="TRACT")
+
+ggplot(main, aes(x = res_fit1, colour = as.factor(QUADRANT))) + 
+  geom_density() 
+
+#Lagrange multipliers 
+```
+
+
+
+
+```{r spatially lagged model}
+
+#fit_2_lag <- lagsarlm(arrests_count ~ liquor_count + tot_pop + med_male_age +
+              #tot_males_20_24 + tot_males_25_29 + tot_males_not_labforce +
+              #tot_white + tot_black + tot_hisp + popdens, data=main, w)
+
+
+
+#summary(fit_2_lag)
 
 ```
