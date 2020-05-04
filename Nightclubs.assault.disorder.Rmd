@@ -82,7 +82,7 @@ arrests4 <- arrests2 %>%
             DESCRIPTION != "Attending Or Kindling Bonfires " )
 
 arrests5 <- arrests4 %>%
-  subset(HOUR == 22 |
+  subset(HOUR == 22:23 |
            HOUR == 0:4) 
 
 arrests <- arrests5
@@ -323,8 +323,8 @@ p-value of Moran's I is significant, therefore we can reject the null that arres
 
 This indicates the presence of spatial autocorrelation, so we therefore need to do a spatial regression model.  
 
-```{r better controls}
-## Try a new model with better controls
+```{r spatial regression}
+
 
 
 ```
