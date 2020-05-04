@@ -182,7 +182,7 @@ liquor_sf<- st_as_sf(liquor,
 
 ## Adding control variables
 
-Next, we added a variety of control variables by tract including median male, ... [add]
+Next, we added a variety of control variables by tract including...
 
 ```{r add controls}
 census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
@@ -321,7 +321,15 @@ broom_summary
 
 ```
 
-In this simple OLS specfication,  only liquor location count and total black population are significant.
+In this simple OLS specfication,  the variables significant at the 5% level are:
+
+  1. Number of on-premise liquor licensed locations
+  2. Total population
+  3. Median household income
+  4. Median household size of rental units
+  5. Percentage of total males that are 25-29
+  6. Percentage of total population not in the labor force
+
 
 [mention racial bias again]
 

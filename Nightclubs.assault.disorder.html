@@ -506,7 +506,7 @@ liquor_sf&lt;- st_as_sf(liquor,
 </div>
 <div id="adding-control-variables" class="section level2">
 <h2>Adding control variables</h2>
-<p>Next, we added a variety of control variables by tract including median male, … [add]</p>
+<p>Next, we added a variety of control variables by tract including…</p>
 <pre class="r"><code>census_api_key(&quot;816f34b70c5f746503c5eb778287ef105fdb3902&quot;, install=TRUE, overwrite=TRUE)</code></pre>
 <pre><code>## [1] &quot;816f34b70c5f746503c5eb778287ef105fdb3902&quot;</code></pre>
 <pre class="r"><code>acs &lt;-get_acs(geography = &quot;tract&quot;, 
@@ -681,7 +681,15 @@ broom_summary</code></pre>
 ##  9 poverty         4.28      3.30          1.30  1.96e- 1
 ## 10 not_labforce   -6.83      4.12         -1.66  9.95e- 2
 ## 11 popdens        -0.0000325 0.0000252    -1.29  1.99e- 1</code></pre>
-<p>In this simple OLS specfication, only liquor location count and total black population are significant.</p>
+<p>In this simple OLS specfication, the variables significant at the 5% level are:</p>
+<ol style="list-style-type: decimal">
+<li>Number of on-premise liquor licensed locations</li>
+<li>Total population</li>
+<li>Median household income</li>
+<li>Median household size of rental units</li>
+<li>Percentage of total males that are 25-29</li>
+<li>Percentage of total population not in the labor force</li>
+</ol>
 <p>[mention racial bias again]</p>
 <pre class="r"><code>#Visual test of spatial autocorrelation, using rersiduals
 main_sf$res_fit1 &lt;- residuals(fit_1)
