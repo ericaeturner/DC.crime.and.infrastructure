@@ -193,7 +193,8 @@ acs <-get_acs(geography = "tract",
                        "B19013_001", "B25010_003E", "B23025_007E", 
                        "B23008_012E", "B01002_002E", "B01001_002E", 
                        "B01001H_008E", "B01001H_009E","B02001_002E",
-                       "B02001_003", "B03001_001", "B01001_002E"),
+                       "B02001_003", "B03001_001", "B01001_002E", 
+                       "B14001_008M", "B01002_001E"),
           year=2018, state="DC") 
 
 acs<-subset(acs, select=c("estimate", "GEOID", "variable"))
@@ -217,6 +218,9 @@ acs$white<-acs$B02001_002
 acs$black<-acs$B02001_003
 acs$hisp<-acs$B03001_001
 acs$tot_male<-acs$B01001_002
+acs$coll_enroll<-acs$B14001_008
+acs$med_age<-acs$B01002_001
+
 
 
 
@@ -235,7 +239,7 @@ acs<-subset(acs, select=c("bach", "transcience",
                           "poverty", "housing_costs", "med_hh_income",
                           "hhsize_rental", "not_labforce", "under6_mom", "TRACT" , 
                           "tot_male" , "med_male_age", "males_20_24", "males_25_29", 
-                          "white", "black", "hisp"))
+                          "white", "black", "hisp", "coll_enroll", "med_age"))
                           
 
 #population as df to enable join with acs
@@ -280,19 +284,36 @@ main<- mutate(main, popdens = tot_pop/SQ_MILES)
 
 #turn totals into percentages
 main <- mutate(main, bach = bach/tot_pop)
+main <- mutate(main, tot_bach = bach)
+
+
 main <- mutate(main, transcience = transcience/tot_pop)
 main <- mutate(main, non_relatives = non_relatives/tot_pop)
 main <- mutate(main, males_never_married = males_never_married/tot_male)
+
 main <- mutate(main, poverty = poverty/tot_pop)
+main <- mutate(main, tot_poverty = poverty)
+
 main <- mutate(main, not_labforce = not_labforce/tot_pop)
+
 main <- mutate(main, under6_mom = under6_mom/tot_pop)
+
 main <- mutate(main, males_20_24 = males_20_24/tot_male)
+main <- mutate(main, tot_males_20_24 = males_20_24)
+
 main <- mutate(main, males_25_29 = males_25_29/tot_male)
+main <- mutate(main, tot_males_25_29 = males_25_29)
+
 main <- mutate(main, white = white/tot_pop)
+main <- mutate(main,tot_white = white)
+
 main <- mutate(main, black = black/tot_pop)
+main <- mutate(main, tot_black = black)
+
 main <- mutate(main, hisp = hisp/tot_pop)
 main <- mutate(main, male_to_total = tot_male/tot_pop)
-
+main <- mutate(main, coll_enroll = coll_enroll/tot_pop)
+main <- mutate(main, tot_coll_enroll = coll_enroll)
 
 main<- na.omit(main)
 
@@ -307,10 +328,8 @@ main<- na.omit(main)
 main_sf<- st_sf(main,
                 sf_column_name = c("geometry"))
 
-fit_1 <- lm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_sf)
+fit_1 <- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_sf)
 
 #r-squared
 summary(fit_1)$r.squared
@@ -321,17 +340,14 @@ broom_summary
 
 ```
 
-In this simple OLS specfication,  the variables significant at the 5% level are:
+In this simple OLS specfication, the variables significant at the 10% level are:
 
   1. Number of on-premise liquor licensed locations
   2. Total population
   3. Median household income
-  4. Median household size of rental units
   5. Percentage of total males that are 25-29
-  6. Percentage of total population not in the labor force
 
-
-[mention racial bias again]
+[mention how R2 is low, limitations of our specification]
 
 
 ```{r spatial autocorrelation}
@@ -380,9 +396,9 @@ lm.morantest(fit_1, rwm, alternative="two.sided")
 
 ```
 
-The p-value of Moran's I is on the edge of significance, therefore we may want to reject the null that arrests for assault and disorderly conduct are randomly distributed throughout Census tracts in DC.
+The p-value of Moran's I is not significant, therefore we cannot reject the null that arrests for assault and disorderly conduct are randomly distributed throughout Census tracts in DC. In other words, this model does not demonstrate spatial autocorrelation. 
 
-A significant Moran's I suggests the presence of spatial autocorrelation, so we should conduct a spatial regression model.  
+However, for the purposes of learning how to use a novel geospatial technique, we will nevertheless proceed with spatial regression model.  
 
 ## Sub-regional analysis 
 
@@ -425,18 +441,14 @@ main_SW_sp <- as(main_SW_sf , "Spatial")
 main_SE_sp <- as(main_SE_sf , "Spatial")
 
 
-
-
 #Then we create a list of neighbours using the Queen criteria
 w_NW <- poly2nb(main_NW_sp, row.names=main_NW_sp$TRACT)
 
 wm_NW <- nb2mat(w_NW, style='B')
 rwm_NW <- mat2listw(wm_NW, style='W')
 
-fit_NW<- lm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_NW_sf)
+fit_NW<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_NW_sf)
 
 #NE neighbors
 w_NE <- poly2nb(main_NE_sp, row.names=main_NE_sp$TRACT)
@@ -444,11 +456,8 @@ w_NE <- poly2nb(main_NE_sp, row.names=main_NE_sp$TRACT)
 wm_NE <- nb2mat(w_NE, style='B')
 rwm_NE <- mat2listw(wm_NE, style='W')
 
-fit_NE<- lm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_NE_sf)
-
+fit_NE<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_NE_sf)
 
 #SW neighbors
 w_SW <- poly2nb(main_SW_sp, row.names=main_SW_sp$TRACT)
@@ -456,11 +465,8 @@ w_SW <- poly2nb(main_SW_sp, row.names=main_SW_sp$TRACT)
 wm_SW <- nb2mat(w_SW, style='B')
 rwm_SW <- mat2listw(wm_SW, style='W')
 
-fit_SW<- lm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_SW_sf)
-
+fit_SW<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_SW_sf)
 
 #SE neighbors
 w_SE <- poly2nb(main_SE_sp, row.names=main_SE_sp$TRACT)
@@ -468,10 +474,8 @@ w_SE <- poly2nb(main_SE_sp, row.names=main_SE_sp$TRACT)
 wm_SE <- nb2mat(w_SE, style='B')
 rwm_SE <- mat2listw(wm_SE, style='W')
 
-fit_SE<- lm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_SE_sf)
+fit_SE<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_SE_sf)
 
 
 
@@ -495,28 +499,21 @@ P-value is not significant for NW, NE, and SE. [For SW, sample size too small?] 
 
 ```{r spatially lagged model}
 #Then we create a list of neighbours using the Queen criteria
-fit_lagged <- errorsarlm(arrests_count ~liquor_count +tot_pop +
-             med_hh_income + hhsize_rental + 
-              white + black +  males_25_29 + poverty +
-              not_labforce + popdens, data=main_sf, rwm)
+fit_lagged <- errorsarlm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_sf, rwm)
 
 summary(fit_lagged)
 
 ```
 
-In the original OLS model, the variables significant at the 5% level were: 
+In the spatially lagged model, variables significant at the 10% level are the same as in the )LS model: 
 
   1. Number of on-premise liquor licensed locations
   2. Total population
   3. Median household income
-  4. Median household size of rental units
-  5. Percentage of total males that are 25-29 
-  6. Percentage of total population not in the labor force
+  4. Percentage of total males that are 25-29
   
+This was to be expected because we were not able to demonstrate spatial autocorrelation.
 
-In the spatially lagged model, variables significant at the 5% level are: 
-
-  1. Number of on-premise liquor licensed locations
-  2. Total population
-  3. Median household income
+[maybe describe slight differences in p-values, and why]
 
