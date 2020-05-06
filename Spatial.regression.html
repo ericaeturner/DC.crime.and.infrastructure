@@ -731,7 +731,7 @@ fit_SE&lt;- lm(arrests_count ~liquor_count + tot_pop + popdens +
 ## sample estimates:
 ## Observed Moran I      Expectation         Variance 
 ##      -0.05960648      -0.05352713       0.00847446</code></pre>
-<p>Moran’s I is significant for NE DC, which suggests we may want to run two spatially lagged models, one for all of DC and one for NE DC in particular. SW DC has an NA p-value perhaps because it has two few tracts.</p>
+<p>Moran’s I is significant for NE DC and the z-score is positive, suggesting the clustering of arrests in NE DC. We will therefore run two spatially lagged models, one for all of DC and one for NE DC in particular. SW DC has an NA p-value perhaps because it has too few tracts.</p>
 </div>
 <div id="spatially-lagged-regression" class="section level2">
 <h2>Spatially lagged regression</h2>
@@ -823,10 +823,10 @@ In the spatially lagged model for NE DC, percentage of total males that are 25-2
 <li>Median household income</li>
 </ol>
 <p>
-Likewise, the significance of on-premise liquor and median household income, though significant, are much less significant than compared to DC overall. This is difficult to interpret since our model is so weakly specified, but assuming it were well-specified, it would suggest that patterns of arrests for simple assault and disorderly conduct are fundamentally different in NE DC compared to the rest of DC.
+Likewise, the significance of on-premise liquor and median household income, though significant, are much less significant than compared to DC overall. This is difficult to interpret since our model is so weakly specified, but assuming it were well-specified, it would suggest that patterns of arrests for simple assault and disorderly conduct are fundamentally different in NE DC compared to the rest of DC and that the former has spatial autocorrelation while the latter does not.
 </p>
 <p>
-Because of the weakness of our model, we cannot formulate any robust conclusions about our initial research question—the spatial influence of on-premise liquor licensed locations on late-night offenses for simple assault and disorderly conduct that resulted in arrests. Future specifications might just look at crime incidents, not those that resulted in arrests (we avoided these data because they did not capture disorderly conduct or simple assault, but instead more serious offenses like assault with a deadly weapon, murder, rape, etc.). Future specifications could also take into proximity data, like distance from a university for example.
+Because of the weakness of our model, we cannot formulate any robust conclusions about our initial research question—the spatial influence of on-premise liquor licensed locations on late-night offenses for simple assault and disorderly conduct that resulted in arrests. Future specifications might just look at crime incidents, not those that resulted in arrests (we avoided these data because they did not capture disorderly conduct or simple assault, but instead more serious offenses like assault with a deadly weapon, murder, rape, etc.). Future specifications could also take into account proximity data, like distance from a university for example.
 </p>
 </div>
 
