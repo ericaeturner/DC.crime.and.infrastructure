@@ -1,0 +1,145 @@
+---
+title: "Point Pattern Analysis"
+output: html_document
+editor_options: 
+chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE)
+library(tidyverse)
+library(knitr) 
+library(tmap)
+library(sf)
+library(spdep)
+library(car)
+library(GWmodel)
+library(gridExtra)
+library(httr)
+library(sp)
+library(methods)
+library(broom)
+library(tidycensus)
+library(GISTools)
+library(spatstat)
+```
+
+# Data wrangling
+
+We begin by bringing the datasets into the required (ppp) format from the sf format they're currently in. First, we read in the datasets.
+
+```{r dataset, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+
+# Reading in cleaned offense data and keeping only necessary variables
+arrests_sf <- st_read("./datasets/arrests.cleaned_sf/arrests.cleaned_sf.shp")
+briefarrests_sf <- subset(arrests_sf, 
+                          select = "geometry")
+
+# Reading in cleaned liquor data and keeping only necessary variables
+liquor_sf <- st_read("./datasets/liquor.cleaned_sf/liquor.cleaned_sf.shp")
+briefliquor_sf <- subset(liquor_sf, select ="geometry")
+```
+
+Next we append the datasets. By only keeping necessary variables, we've ensured that column names in both arrests and liquor datasets have the same column names. It is important to append so that we can conduct analysis for both kinds of datapoints within the same geographic area and explore relations accordingly. 
+
+```{r appending, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+
+# We create a column in both datasets to identify whether a point represents a liquor license location or an offense location after appending
+briefarrests_sf$from_liquor <- "offense"
+briefliquor_sf$from_liquor <- "liquor"
+
+# Appending
+main_pattern <- rbind(briefliquor_sf,briefarrests_sf)
+
+# Converting from_liquor to factor; this variable will be used as a 'mark' - an attribute associated with a point/event - which must be in a factor format
+main_pattern$from_liquor <- as.factor(main_pattern$from_liquor) 
+```
+
+Next we read in the boundaries for DC. This will be used as a 'window' which identifies the area within which the analysis is to be conducted. 
+
+```{r dc, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+# Reading in DC's boundaries
+dc <- readShapeSpatial("./datasets/Washington_DC_Boundary-shp/3e1cb723-752b-4300-a022-f1a1f3667e47202043-1-1re4u28.ia88k.shp")
+```
+
+Now that we have the required files - an appended file with liquor license and offense locations (points/events) and DC's boundaries (the window) we're ready to convert to spatstat's default file format - ppp.
+
+```{r ppp, include=TRUE, warning=TRUE, error=FALSE, echo=TRUE}
+
+# Setting DC boundaries to be the 'window'
+dc_sp <- as(dc, "SpatialPolygons")
+dc_window <- maptools::as.owin.SpatialPolygons(dc_sp)
+
+# Setting liquor license and offense locations to be events
+sf_mainpat_coords <- matrix(unlist(main_pattern$geometry), ncol = 2, byrow = T)
+
+# Bringing it together, to create ppp dataset
+mainpat_ppp <- ppp(x = sf_mainpat_coords[,1], 
+                   y = sf_mainpat_coords[,2],
+                   window = dc_window, check = T,
+                   marks = main_pattern$from_liquor)
+
+# Inspecting for duplicates
+sum(multiplicity(mainpat_ppp) > 1)
+
+```
+
+But this throws the warning that the file contains duplicate location values. There are 245 locations with more than one incidence of crimes - possibly when there are repeat offences or multiple offences in the same instance. Spatstat package assumes each event to be unique, thus this issue must be addressed. However, it would be incorrect to delete these instances as it would reduce the intensity of crime. Instead, we resort to jittering - moving points the minimal amount to prevent a perfect overlap. 
+
+```{r jitter, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+
+jitter_mainpat <- rjitter(mainpat_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+# Checking again - no duplicates!
+sum(multiplicity(jitter_mainpat) > 1)
+
+```
+
+We also create separate ppp files for offenses and liquor which will be useful for visualization purposes.
+
+```{r other-ppp, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+# For liquor
+sf_liquor_coords <-
+  matrix(unlist(briefliquor_sf$geometry), 
+                           ncol = 2, byrow = T)
+
+liquor_ppp <- ppp(x = sf_liquor_coords[,1], 
+                   y = sf_liquor_coords[,2],
+                   window = dc_window, check = T)
+
+jitter_liquor <- rjitter(liquor_ppp, retry=TRUE, nsim=1, drop=TRUE)
+
+# For arrests
+sf_arrests_coords <-
+  matrix(unlist(briefarrests_sf$geometry), 
+                           ncol = 2, byrow = T)
+
+arrests_ppp <- ppp(x = sf_arrests_coords[,1], 
+                   y = sf_arrests_coords[,2],
+                   window = dc_window, check = T)
+
+jitter_arrests <- rjitter(arrests_ppp, retry=TRUE, nsim=1, drop=TRUE)
+```
+
+Our files are ready! Now onto the analysis. 
+
+## Kernel density estimation
+
+Density shows the number of points per unit area. The bandwith determines the division of areas within which points are counted. The wider the bandwidth, the more minute detail is lost. The bandwith method selected here is bw.ppl which is recommended for cases where data is likely in multiple clusters (which is the assumption based on data observed in the previous section).
+
+```{r pattern-density, include=TRUE, warning=FALSE, error=FALSE, echo=TRUE}
+darrest <- density.ppp(jitter_arrests, sigma = bw.ppl(jitter_arrests))
+
+dliquor <- density.ppp(jitter_liquor,sigma =bw.ppl(jitter_liquor))
+
+par(mfrow=c(1,2))
+plot(darrest, main="Density for offense locations" )
+plot(dliquor, main="Density for liquor license locations")
+
+```
+
+This plot indicates that arrests data has more clusters than liquor data. Specifically, the cluster in central DC visually seems to overlap - indicating a potential relationship. 
+
+This can be explored further and more formally through Ripley's K method. The cross-K function used here, is based on the average number of offenses within a certain distance of a liquor license location. It compares the observed data to a distribution that would be expected if the points were randomly distributed (rather than clustered in relation to each other). It essentially answers the question - could this clustering have occured simply by random chance? We use the inhomogenous version of K-cross as it is evident from the density plot that the distribution of points is not homogenous/uniform. 
+
+The envelope function help understand the significance of any pattern detected. It uses a Monte Carlo simulation randomly assigning points as offense or liquor license points. It runs such a simulation 99 times and if the curve representing the observed points falls within the confidence interval of the simulation, it implies that the pattern of clustering doesn't change even when the the categories are randomly assigned. That shows no significant relation between the location of liquor stores and offenses. 
