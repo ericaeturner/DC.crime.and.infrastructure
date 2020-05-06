@@ -1,0 +1,172 @@
+---
+title: "Introduction and Literature Review"
+output: html_document
+---
+
+## Introduction
+
+This work analyses the relationship between on-premises liquor licensed locations and crime incidents occurring late at night (10pm-4am), by census tracts in Washington D.C. in 2017. Our main hypothesis was that crime would be positively associated with the presence of on-premises liquor licensed locations.
+
+We restricted our analysis to on-premise liquor licensed locations (which include clubs, nightclubs, taverns, arenas) and crime incidents falling under the categories of simple assault and disorderly conduct (since these are the ones more associated with alcohol intoxication). Our decision to restrict the analysis to the late-night timeframe was based on the hypothesis that on-premises liquor outlets are more crowded at those times, while crime is more prone to occur at night. 
+
+For the analysis purpose, we start with a comprehensive exploratory analysis compound of summary statistics and a point pattern analysis, to end with a spatial auto-correlation model based on Moran’s I statistic.
+
+Since the 80’s, a growing literature has hypothesized about the relationship between crime and its proximity to alcohol-selling establishments (as a proxy to alcohol consumption). The main theories used to explain the spatial correlation between alcohol establishments and crime can be categorized by individual level theories of alcohol consumption (Roncek & Pravatineer, 1989), routine activities theory (Cohen & Felson, 1979) and crime pattern theory (Brantingham & Brantingham, 1981) for spatial areas. 
+
+In this context, our work focuses in the routine activities’ theory since we argue that these types of crimes are associated to the consumption of alcohol in on-premises liquor stores, to which people usually go in a certain routine basis, based on its spatial proximity to their homes, work spaces, among others. 
+
+## Literature review
+
+### 1. Theories
+
+#### 1.1 Routine theory
+
+Routine activity theory refers to the conduct of daily activities or “routine” activities by victims, offenders and guardians and the characteristics of the area in which they take place. Typically, these theories lead to the examination of place and space: they argue that different types of places exhibit different opportunity structures across space and time. In this way, institutions and their characteristics, as well as other physical features of the environment, become important factors in understanding variations in crime (Roman et al, 2008: 23). Therefore, analyzing the spatial effects of alcohol-selling establishments becomes relevant to understand patterns of crime behavior at smaller units of analysis such as census tracts, block tracts and neighborhoods. 
+
+As pointed out by Roman et al (2008), earlier criminological studies found evidence for hotspots of crime around liquor stores and bars (Block and Block, 1995; Roncek and Bell, 1981; Roncek and Maier, 1991; Sherman, Gartin and Buerger, 1989), while more recent literature found that the community impacts associated with alcohol outlet density include increased levels of homicide and other assaults, prostitution, liquor law violations, and traffic fatalities (LaScala, Gruenewald and Johnson, 2001; Lipton and Gruenewald, 2002; Speer, Gorman, Labouvie and Ontkush, 1998).
+
+#### 1.2 Availability theory
+
+Complementary to the routines activity theory is the availability theory, which possess that as alcohol becomes more available (for example, when another alcohol establishment is added to a census block, etc.), alcohol consumption increases with a subsequent rise in alcohol-related violence (Gruenewald, 2007). 
+
+Both theories explore the relationship between alcohol consumption and crime. Nonetheless they differ in that, while the routine activity theory takes into consideration differential aspects such as the type of alcohol establishment (mainly if they are on or off-premises outlets), the availability theory does not recognize that distinction since them would expect that both an increase in on-premise and off-premise establishments will lead to an increase in consumption and related violence because both would represent an increase in alcohol availability. 
+
+#### 1.3 Theories that incorporate times of the day to analyze patterns of crime
+
+Another relevant variable that we incorporate to analyze the relationship between crime and alcohol consumption is the time of the day at which crimes take place. Other studies examining nighttime activities and crime have shown a relationship between time of day and patterns of assault and residential burglaries (Massey, Krohn and Bonati, 1989; Messner and Blau, 1987; Roundtree and Land, 1996; Sampson and Wooldredge, 1987). In this context, understanding the factors associated with crime at different times of day becomes critical. Specially, for crimes related with alcohol consumption they are more prone to occur at night, so we decided to restrict our analysis to nighttime consumption, from 10 pm to 4 am.
+
+### 2. Types of crimes
+
+As regards the types of crimes that alcohol consumption is related to, another line of research focuses on estimating the extent to which the effect of alcohol establishments on crime vary by type of crime: namely, among inter-personal crimes (such as robbery or assault), versus non-personal crimes (such as burglary). A large amount of literature focuses on specifically predicting interpersonal offenses, such as robbery or assault (Smith, Frazee, & Davison, 2000; Snowden & Freiburger, 2015; Branas, Han, & Wiebe, 2016; Livington, 2008; Murray & Roncek, 2008, Pridemore & Grubesic, 2013). This is mainly because alcohol outlets are not expected to increase burglary, while are expected to have larger effects on interpersonal crimes and social misconduct. 
+
+### 3. Unit of analysis: census tracts
+
+Since studies that have used large units of analysis, such as the state, city or metropolitan area, have produced conflicting results (Gorman et al., 1998a, b; Scribner et al. 1995), during the lasts decades studies on alcohol availability have focused more closely on the use smaller units of analysis than the city. 
+
+For example, Scribner and colleagues (1999) attempted to overcome limits in past research by studying homicide at the census tract level and, more specifically, limiting the study to urban residential neighborhoods. They found that both off-site sale alcohol outlets per square mile and onsite sale outlets per person were significantly related to the homicide rates among urban residential areas. A higher on-site alcohol outlet density was not associated with higher rates of homicide. The authors stressed that alcohol outlets are dynamically linked to the social network that results from the routine activities in neighborhoods. In this way, we can observe that the studies that have focused on smaller units of analysis to study the influence of alcohol availability has demonstrated a strong relationship between alcohol availability and crime problems (for example, at the census tract level: Gyimah-Brempon, 2001; LaVeist and Wallace, 2000).
+
+#### 3.1. Studies at the census tract level
+
+Thus, some studies that focused at the census tract and block levels can be classified among those who distinguish between on and off-premises outlets and those which take them both as a unique category: 
+
+##### 3.1.1.	Combine on and off-premises outlets into single variable:
+
+-	Speer, P., Gorman, D., Labouvie, E., and Ontkush, M. (1998): the authors combine on and off-premise outlets into a single variable to measure violent crimes in Newark (NJ), and found that alcohol outlet density explained a significant percent of this relationship.
+-	Gyimah-Brempong, K. (2001): combines on and off-premises outlets into a single variable to measure total, property and violent crime at the census tract level in Detroit. 
+-	Nielsen, A. L.; Martinez, Jr, R.; Lee, M. T. (2005): combine on and off-premises outlets into a single variable to measure robbery and assault victimizations at the census tract level for Miami. They find that higher alcohol availability rates are associated with more latino but not black assault and robbery victims.
+-	Waller, L., Zhu, Li; Gotway, C., Gorman, Dennis M. and Gruenewald, P. (2007): combine on and off-premises outlets into a single variable to measure violent crime at the census tract level in Houston.
+
+##### 3.1.2.	Examined both on and off-premises outlets separately:
+
+-	Scribner, R., Cohen, D., Kaplan, S., and Allen, S. (1999): examined both on and off-premise outlets separately to measure its relationship with homicide at the census tract level in New Orleans, finding also a significant relationship with off-sale alcohol outlet density. 
+-	Freisthler, B., Midanik, L., and Gruenewald, P. (2004): examines both on and off-premises outlets separately to measure child maltreatment census tracts in three counties in California.
+
+
+## Organization of the remaining sections:
+
+### 2. Data cleaning
+
+First, we loaded in data sets for arrests and for liquor licensed locations from D.C. Open Data.
+
+For the arrests data set, we ignored the location of where the arrest occurred and focused instead on the location of the offense itself, since people may have been arrested far from where the incident occurred. This data set has drawbacks however, since it only records incidents for which there was an arrest made, which introduces bias. For instance, police may have had more success tracking down black offenders, since majority-black neighborhoods in D.C. are more heavily policed and more equipped with CCTV cameras. Moreover, black Washingtonians are disproportionately stopped and arrested across D.C. neighborhoods, especially for minor offenses (which disorderly conduct qualifies as). (1)(2)
+
+Source
+
+  1.	https://opendata.dc.gov/datasets/closed-circuit-tv-street-cameras?geometry=-77.375%2C38.787%2C-76.634%2C38.974
+  2.	https://wamu.org/story/19/05/14/aclu-study-finds-d-c-s-black-residents-arrested-at-higher-rate-for-largely-minor-offenses/
+
+### 3. Summary statistics
+
+Second, we present an exploratory analysis that comprise a series of graphs and maps. These contribute to understand the main characteristics and distribution of the on-premises alcohol outlets and types of arrest in D.C. Specifically, for arrests we present statistics by gender, race and age attributes. 
+
+### 4. Point patten analysis
+
+Third, in this section we elaborate on three main methods of spatial analysis: 
+
+-	Kernel density estimation
+
+-	Cross K Function (Ripley's)
+
+-	Envelope Function
+
+### 5. Spatial regression
+
+Finally, in this section we present our proposed spatial regression model to evaluate our hypotheses that spatial auto-correlation exists between the arrest count per Census tract in D.C. and the presence of on-premises liquor stores.
+
+For this purpose, we first run a simple OLS regression model (which does not take into account the spatial dimension). Secondly, we use a statistic called Moran’s I to assess the presence of spatial auto-correlation between points in the space.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### References
+
+Block, R.L. and C.R. Block. "Space, Place and Crime: Hot Spot Areas and Hot Places of Liquor Related Crime." In Crime and Place: Crime Prevention Studies, vol. 4, edited by J. E. Eck and D. Weisburd, 145-184. Monsey, NY: Criminal Justice Press, 1995.
+
+Branas, C.C., Han S. and Wiebe, D.J. Alcohol Use and Firearm Violence. Epidemiol Rev. 2016;38(1):32‐45. 
+
+Brantingham, P.J. and P.L. Brantingham. Environmental Criminology. London: Sage Publications. 1981.
+
+Freisthler, B. "A Spatial Analysis of Social Disorganization, Alcohol Access, and Rates of Child Maltreatment in Neighborhoods." Child and Youth Services Review 26 (2004): 803-19.
+
+Gorman, D.M., Speer, P., Labouvie, E., and Subaiya, A. "Risk of Assaultive Violence and Alcohol Availability in New Jersey." American Journal of Public Health 88, no. 1 (1998a): 97-100.
+
+Gorman, D. M., P. Speer, E. Labouvie, and A. Subaiya. "Alcohol Availability and Domestic Violence." American Journal of Drug and Alcohol Abuse 24, no. 4 (1998b): 661-72.
+
+Gruenewald, P.J. “The Spatial Ecology of Alcohol Problems: Niche Theory and Assortative Drinking.” Addiction 102, no. 6 (2007): 870-878.
+
+Gyimah-Brempong, K. “Alcohol Availability and Crime: Evidence from Census Tract Data.” Southern Economic Journal 68, no. 1 (2001): 2-21.
+
+LaScala, E. A., F. W. Johnson, and P.J. Gruenewald. "Neighborhood Characteristics of AlcoholRelated Pedestrian Injury Collisions: A Geostatistical Analysis." Prevention Science 2, no. 2 (2001): 123-34.
+
+LaVeist, T. A., and J. M. Wallace, Jr. "Health Risk and Inequitable Distribution of Liquor Stores in African American Neighborhood." Social Science and Medicine 51, no. 4 (2000): 613-17.
+
+Lipton, R and P.J. Gruenewald. “The Spatial Dynamics of Violence and Alcohol Outlets.” Journal of Studies on Alcohol 63, no. 2 (2002): 187-195.
+
+Massey, J., M. Krohn, and L. Bonati. "Property Crime and the Routine Activities of Individuals." Journal of Research in Crime and Delinquency 26, no. 4 (1989): 378-400.
+
+Messner, S. and J. Blau. “Routine Leisure Activities and Rates of Crime: A Macro-level Analysis.” Social Forces 65 (1987): 1035-51.
+
+Murray, R. K., and Roncek, D. W. Measuring Diffusion of Assaults Around Bars Through Radius and Adjacency Techniques. Criminal Justice Review, 33(2), (2008): 199–220.
+
+Nielsen, Jr., A. L., R. Martinez, and M. T. Lee. "Alcohol, Ethnicity, and Violence: The Role of Alcohol Availability for Latino and Black Aggravated Assaults and Robberies." The Sociological Quarterly 46, no. 3 (2005): 479-502.
+
+Roman, C. G., Reid, S.E., Bhati, A. S. and Tereshchenko, B. “Alcohol Oulets as Attractors of Violence and Disorder: A Closer Look at the Neighborhood Environment”. URBAN INSTITUTE, Justice Policy Center (2008).
+
+Roncek, D.W. and R. Bell. “Bars, Blocks, and Crimes.” Journal of Environmental Systems 11 (1981): 35-47.
+
+Roncek, D. and M. Pravatiner. "Additional Evidence that Taverns Enhance Nearby Crime." Sociology and Social Research 73, no. 4 (1989): 185-188.
+
+Roncek, D. and P. A. Maier. “Bars, Blocks, and Crimes Revisited: Linking the Theory of Routine Activities to the Empiricism of "Hot Spots."” Criminology 29, no. 4 (1991): 725-753.
+
+Roundtree, P. and K. Land. "Burglary Victimization, Perceptions of Crime Risk, and Routine Activities: A Multilevel Analysis Across Seattle Neighborhoods and Census Tracts." Journal of Research in Crime and Delinquency 33, no. 2 (1996): 147-180.
+
+Sampson, R. and J. Wooldredge. "Linking the Micro- and Macro-level Dimensions of Lifestyleroutine Activity and Opportunity Models of Predatory Victimization." Journal of Quantitative Criminology 3, no. 4 (1987): 371-393.
+
+Scribner, R.A., D.A. Cohen, S. Kaplan, and S.H. Allen. "Alcohol Availability and Homicide in New Orleans: Conceptual Considerations for Small Area Analysis of the Effect of Alcohol Outlet Density." Journal of Studies on Alcohol 60 (1999): 310-16.
+
+Scribner, R.A., D.A. Cohen, S. Kaplan, and S.H. Allen. "The Risk of Assaultive Violence and Alcohol Availability in Los Angeles County." American Journal of Public Health 85, no. 3 (1995): 335-40.
+
+Sherman, L., P. Gartin and M. Buerger. “Hot Spots of Predatory Crime: Routine Activities and the Criminology of Place.” Criminology 27 (1989): 27-56.
+
+Snowden, A.J. and Freiburger, T.L. Alcohol outlets, social disorganization, and robberies: Accounting for neighborhood characteristics and alcohol outlet types. Social Science Research 51, 145-162.
+
+Smith, W. R., S. G. Frazee, and E. L. Davidson. "Furthering the Integration of Routine Activity and Social Disorganization Theories: Small Units of Analysis and the Study of Street Robbery as a Diffusion Process." Criminology 38, no. 2 (2000): 489-523.
+
+Pridemore, W. A., & Grubesic, T. H. Alcohol Outlets and Community Levels of Interpersonal Violence: Spatial Density, Outlet Type, and Seriousness of Assault. Journal of Research in Crime and Delinquency, 50(1), (2013): 132-159.
+
+Gruenewald Speer, P.W., D.M. Gorman, E.W. Labouvie, and M.A. Ontkush. “Violent Crime and Alcohol Availability: Relationships in an Urban Community.” Journal of Public Health Policy 19 (1998): 303-318. 
+
+Waller, L.A., L. Zhu, C.A. Gotway, D.M. Gorman, and P.J. Gruenewald. “Quantifying Geographic Variations in Associations Between Alcohol Distribution and Violence: A Comparison of Geographically Weighted Regression and Spatially Varying Coefficient Models.” Stochastic Environmental Research and Risk Assessment (SERRA) 21, no. 5 (2007): 573-588.
