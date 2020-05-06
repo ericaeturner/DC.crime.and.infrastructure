@@ -167,15 +167,18 @@ Let's explore the significance of this finding with the envelope funtion.
 
 The envelope function uses a Monte Carlo simulation randomly assigning points as offense or liquor license points. It runs such a simulation 99 times and if the curve representing the observed points falls within the confidence interval of the simulation, it implies that the pattern of clustering doesn't change even when the the categories are randomly assigned. The null hypothesis is that the two distributions are spatially independent. If the observed data falls within the 'envelope' or confidence interval of this null hypothesis, then we fail to reject it. That shows no significant relation between the location of liquor stores and offenses. 
 
-{r enevelope, cache=TRUE, warning=FALSE, error= FALSE, echo=TRUE} 
+```{r enevelope, cache=TRUE, warning=FALSE, error= FALSE, echo=TRUE} 
 
 envarrests <- envelope(jitter_mainpat, fun=Kcross,
-                  nsim=100,
+                  nsim=99,
                   i="liquor",j="offense",
                   simulate=expression
                   (rlabel(jitter_mainpat)),
                   correction = "Ripley")
 
-plot(envarrests)
+plot(envarrests, main = "Cross K with envelope: Distance from liquor license to offenses")
 ```
 
+Here we see that the curve representing the observed values (black) lies outside the envelope (grey area). This implies that we can reject the null hypothesis that the points fit a pattern of 'complete spatial randomness'. This points to the possibility that the points are clustered, rather than random, but clustered in a manner that liquor license locations repel offense locations. 
+
+More can be understood through regressions with added controls. 
