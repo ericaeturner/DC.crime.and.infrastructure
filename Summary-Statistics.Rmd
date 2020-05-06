@@ -1,0 +1,360 @@
+---
+title: "Summary Statistics"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(sf)
+library(sp)
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ISLR)
+library(igraph)
+```
+
+
+```{r,  results="hide"}
+# Loading data 
+```
+Loading in cleaned csv for arrest data, as well as shapefile for on liquor licensed locations and census tracts, all of which include longitude and latitude.
+
+```{r load data and subset,  results="hide"}
+
+liquor <- st_read("Liquor_Licenses/Liquor_Licenses.shp")
+arrests_cleaned <- read_csv("arrests.cleaned.csv")
+census <- st_read("Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
+```
+
+```{r,  results ="hide"}
+
+# Removing NA values from arrests dataset and subsetting arrests to simple assault and disorderly conduct dataframes
+```
+Here, we narrowed down the arrest dataset to those that do not have missing data for latitude and longitude. We also created two new dataframes that contain simple assault and disorderly conduct seperately. 
+
+```{r removing NAs and subsetting arrests,  results ="hide"}
+
+arrests_cleaned <- arrests_cleaned[!is.na(arrests_cleaned$OFFENSE_LATITUDE),]
+arrests_cleaned <- arrests_cleaned[!is.na(arrests_cleaned$OFFENSE_LONGITUDE),]
+
+assault <- arrests_cleaned %>%
+  subset(CATEGORY == "Simple Assault")
+
+disorder <- arrests_cleaned %>%
+  subset(CATEGORY == "Disorderly Conduct")
+```
+
+
+```{r subsetting and cleaning,  include=FALSE}
+
+# Subsetting liquor licensed locations to on premise locations 
+```
+Next, we narrowed down liquor licensed locations to on premise locations only, which includes clubs, nightclubs, taverns, and arenas. This eliminates locations where people are purchasing alcohol to-go and drinking off premise (e.g. grocery stores).
+
+```{r subsetting liquor licensed locations,  include=FALSE}
+
+unique(liquor$STATUS)
+liquor <- subset(liquor, STATUS == "Active" |
+                   STATUS == "Issued")
+
+unique(liquor$TYPE)
+liquor2 <- liquor %>%
+  subset(TYPE == "Club" |
+           TYPE == "Nightclub" |
+           TYPE == "Tavern" |
+           TYPE == "Arena")
+
+liquor2[!is.na(liquor2$LONGITUDE),]
+liquor2[!is.na(liquor2$LATITUDE),]
+
+liquor <- liquor2
+rm(liquor2)
+```
+
+```{r converting latitude and longitude as numeric in liquor df, include=FALSE}
+
+# Converting latitude and longitude in the liquor licensed locations dataset as numeric values for future plotting.
+
+liquor$LONGITUDE=as.numeric(levels(liquor$LONGITUDE))[liquor$LONGITUDE]
+liquor$LATITUDE=as.numeric(levels(liquor$LATITUDE))[liquor$LATITUDE]
+```
+
+
+```{r aggregating the number of liquor licenses per census tract,  results="hide"}
+
+# Aggregating the number of liquor licenses per census tract
+```
+Next, we plotted simple maps and choropleths to assess visually if on premise liquor licensed locations and arrests seem related. We used the geographic census tract level to show their density in our visualizations.
+
+```{r creating sf object,  include=FALSE}
+
+# Creating arrests sf object and plotting disorderly conduct, simple assault and on premise liquor locations to explore distribution 
+
+arrests_cleaned_sf <- st_as_sf(arrests_cleaned,
+                       coords = c("OFFENSE_LONGITUDE", "OFFENSE_LATITUDE"), crs = 4326)
+```
+
+
+```{r exploratory analysis with ggplot through mapping,  results="hide"}
+
+# Adding in liquor and arrest counts per census tract
+
+census$liquor_count <- lengths(st_intersects(census$geometry, liquor$geometry))
+census$arrest_count <- lengths(st_intersects(census$geometry, arrests_cleaned_sf$geometry))
+census$no_liquor <- ifelse(census$liquor_count == 0, 1, 0)
+```
+The following nine maps and choropleths explore the distribution of arrests as well as the two categories relevant to our analysis (i.e. simple assault and disorderly conduct), in addition to the location of on premise liquor licenses in the DC area. The first choropleth shows the location of on premise liquor licenses throughout the district. The second one shows the presence or absence of liquor licensed locations at the census tract level (red representing absence and blue representing presence). Next, we plotted a choropleth of arrest count, followed by a ratio map of arrests to on premise liquor licenses per census tract.
+
+```{r exploratory analysis through choropleths}
+
+# Choropleth of on premise liquor licensed locations count
+
+ggplot(data = census) +
+  geom_sf(aes(fill = liquor_count)) +
+  scale_fill_continuous(high = "#132B43", low = "#56B1F7") +
+                          labs(title = "Number of on premise liquor licensed \nlocations per census tract in DC (2020)",
+                               x = "Longitude", y = "Latitude")
+
+# Choropleth showing presence or absence of on premise liquor licensed locations per census 
+
+ggplot(data = census) +
+  geom_sf(aes(fill = factor(no_liquor))) +
+  scale_fill_manual(values = c("#56B1F7", "red"), labels = c("Has liquor licenses","No liquor licenses")) +
+  labs(title = "Presence or absence of on premise \nliquor licensed locations in DC (2020)", fill = "",
+       x = "Longitude", y = "Latitude")
+
+# Choropleth of arrests count (for disorderly conduct and simple assault)
+
+ggplot(data = census) +
+  geom_sf(aes(fill = arrest_count)) +
+  scale_fill_continuous(high = "#132B43", low = "#56B1F7") +
+  labs(title = "Number of arrests per census tract in DC (2017)",
+       x = "Longitude", y = "Latitude",
+       caption = "The types of arrest included are simple assault and disorderly conduct.", hjust = 1)
+
+# Ratio map (choropleth) of arrest count and liquor licenses count
+
+census$ratio <- census$arrest_count / census$liquor_count
+
+ggplot(data = census) + geom_sf(aes(fill = ratio)) +
+  scale_fill_continuous(high = "#132B43", low = "#56B1F7") +
+  labs(title = "Ratio of arrests to on premise liquor \nlicensed locations in DC (2017)",
+       x = "Longitude", y = "Latitude",
+       caption = "The types of arrest included are simple assault and disorderly conduct. \nA grey census tract represents an absence of on premise liquor licensed location.", hjust = 1)
+```
+The following four dot distribution maps show the distribution of: on premise liquor licensed locations in DC, arrests, the two combined, and liquor licenses as well as the breakdown of the two arrest categories, respectively. The last choropleth is a combination of a choropleth and a dot distribution map, representing arrest count in blue (darker shades of blue represent higher arrest counts) and on premise liquor licensed locations in red.
+
+```{r exploratory analysis through dot distribution maps}
+
+# Additional Plots
+
+# Dot distribution map of on premise liquor licensed locations
+
+ggplot() +
+  geom_sf(data = census) +
+  geom_sf(data = liquor,  size = 0.3, color = "blue", alpha = 0.5) +
+  labs(title = "On premise liquor licensed locations in DC \n(2020)",
+       x = "Longitude", y = "Latitude")
+
+# Dot distribution map of arrests for disorderly conduct and simple assault
+
+ggplot() +
+  geom_sf(data = census) +
+  geom_sf(data = arrests_cleaned_sf,  size = 0.3, color = "red", apha = 0.5) +
+  labs(title = "Arrests for disorderly conduct and \nsimple assault in DC (2017)",
+       x = "Longitude", y = "Latitude")
+
+# Dot distribution map of on premise liquor licensed locations and arrest 
+
+ggplot() +
+  geom_sf(data = census) +
+  geom_sf(data = liquor, size = 0.3, color = "blue", alpha = 0.5, label = "liquor licensed locations") +
+  geom_sf(data = arrests_cleaned_sf, size = 0.3, color = "red", alpha = 0.5, label = "arrests") +
+  labs(title = "Arrests in DC and on premise liquor \nlicensed locations (2017)",
+       x = "Longitude", y = "Latitude",
+       caption = "Liquor licensed locations are shown in blue and arrests are shown in red \nThe types of arrest included are simple assault and disorderly conduct.", hjust = 1)
+
+# Dot distribution map of on premise liquor licensed locations and type of arrest
+
+ggplot() +
+  geom_sf(data = census) +
+  geom_sf(data = liquor, size = 0.3, color = "blue", label = "liquor licensed locations") +
+  geom_point(data = assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.3, color = "red", alpha = 0.5, label = "simple assault") +
+  geom_point(data = disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.3, color = "black", alpha = 0.5, label = "disorderly conduct") +
+  labs(title = "Arrests per category and on premise \nliquor licensed locations in DC (2017)",
+       x = "Longitude", y = "Latitude",
+       caption = "Liquor licensed locations are shown in blue; \ndisorderly conduct instances are shown in black; \nassaults are shown in red.")
+
+# Choropleth of arrest count per census tract and dot distribution map of on premise liquor licensed locations
+
+ggplot(data = census) +
+  geom_sf(aes(fill = arrest_count)) +
+  geom_sf(data = liquor, size = 0.3, color = "red", alpha = 0.5) +
+  scale_fill_continuous(high = "#132B43", low = "#56B1F7") +
+  labs(title = "Arrests per census tract and on \npremise liquor licensed locations (2017)", 
+       x = "Longitude", y = "Latitude",
+       caption = "Liquor licensed locations are shown in red and arrest counts in blue. \nThe types of arrest included are simple assault and disorderly conduct.", hjust = 1)
+```
+
+
+```{r}
+
+# Subsetting simple assault, disorderly conduct, and arrest (assault and disorderly conduct) according to gender. 
+```
+In this last section, we went further in our exploratory analysis by examining variation in arrest distribution based on various attributes such as sex, race and age. Here, we subsetted simple assault and disorderly conduct according to sex for subsequent plotting that includes the presence of liquor licensed locations.
+
+```{r subsetting according to gender,  results="hide"}
+
+female_assault <- assault %>%
+  filter(SEX == "FEMALE")
+  
+female_disorder <- disorder %>%
+  filter(SEX == "FEMALE")
+
+male_assault <- assault %>%
+  filter(SEX == "MALE")
+
+male_disorder <- assault %>%
+  filter(SEX == "MALE")
+```
+
+
+```{r}
+# Plotting disorderly conduct, simple assault and on premise liquor locations according to sex to explore potential difference in distribution for male vs. female individuals.
+```
+This section shows dot distribution maps similar to the previous section, with the difference that they dissociate arrests based on sex. The following two maps represent on premise liquor locations with: arrests for disorderly conduct in the first map, and arrests for assault in the second map. Male arrests and female arrests are represented in orange and purple, respectively. On premise liquor licensed locations are shown in black.
+
+```{r exploratory analysis through dot distribution maps based on sex}
+
+# Dot distribution map of on premise liquor licensed locations and female vs. male disorderly conduct 
+
+ggplot() +
+  geom_sf(data=census) +
+  geom_point(data=female_disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.5, alpha = 0.5, color = "purple") +
+  geom_point(data=male_disorder, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.5, alpha = 0.5, color = "orange") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = 0.5, alpha = 0.5, color = "black") +
+  labs(title="Arrests for disorderly conduct and on premise \nliquor locations in DC based on gender (2017)", x="Longitude", y="Latitude", caption="Male arrests are represented in orange and female arrests in purple.", hjust = 1)
+
+# Dot distribution map of on-premise liquor licensed locations and female vs. male assault
+
+ggplot() +
+  geom_sf(data=census) +
+  geom_point(data=female_assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.5, alpha = 0.5, color = "purple") +
+  geom_point(data=male_assault, aes(x=OFFENSE_LONGITUDE, y=OFFENSE_LATITUDE), size = 0.5, alpha = 0.5, color = "orange") +
+  geom_point(data=liquor, aes(x=LONGITUDE, y=LATITUDE), size = 0.5, alpha = 0.5, color = "black") + 
+  labs(title ="Arrests for simple assault and on premise \nliquor locations in DC based on gender (2017)", x="Longitude", y="Latitude", caption="Male arrests are represented in orange and female arrests in purple.", hjust = 1)
+```
+
+
+```{r}
+# Summary statistics that show differences in arrest instances and distribution based on gender, race and age attributes.
+```
+In the last section of our exploratory analysis, we explore differences in arrest instances and distribution based on sex, race and age as these factors can influence both crime and whether an individual gets arrested or not. For instance, women show lower criminality and thus, arrest rates than men. Additionally as a result of racial profiling, black men are more likely to getting arrested and collaterally, to be victims of police brutality than white men. 
+
+```{r summary statistics based on sex}
+
+# Bar graph of arrests for disorderly conduct based on gender
+
+ggplot(data=disorder) + 
+  geom_bar(aes(x=SEX), fill = c("purple", "orange"), width = 0.3) +
+  labs(title="Arrest count for disorderly conduct in DC based on sex (2017)", x="Sex", y="Count")  + scale_x_discrete(label = c("Female", "Male"))
+
+# Bar graph of simple assault based on gender
+
+ggplot(data=assault) +
+  geom_bar(aes(x=SEX), fill = c("purple", "orange"), width = 0.3) +
+  labs(title="Arrest count for simple assault in DC based on sex (2017)", 
+       x="Sex", y="Count") + scale_x_discrete(label = c("Female", "Male"))
+```
+
+
+```{r grouping and summarizing for sex category, results="hide"}
+
+# Grouping arrest dataset by sex and hour and summarizing arrest count
+
+arrests_sum_sex <- arrests_cleaned %>%
+  select(SEX, HOUR) %>%
+  group_by(SEX, HOUR) %>%
+  summarize(arrest_count = n())
+
+arrests_sum_sex <- spread(arrests_sum_sex, SEX, arrest_count)
+
+arrests_sum_sex$total <- arrests_sum_sex$MALE + arrests_sum_sex$FEMALE
+```
+
+
+```{r custom ordering of time, results="hide"}
+
+# Custom ordering of times for dumbbell 
+
+arrests_sum_sex <- arrests_sum_sex[c(6:7,1:5),]
+
+arrests_sum_sex$time <- seq(1,7)
+
+arrests_sum_sex$time <- as.factor(arrests_sum_sex$time)
+
+# Create custom labels for time
+
+arrests_sum_sex$time_labels <- arrests_sum_sex$HOUR
+arrests_sum_sex$time_labels[1:3] <- c(10,11,12)
+arrests_sum_sex$time_labels <- lapply(arrests_sum_sex$time_labels, as.character)
+arrests_sum_sex$time_labels[1:2] <- paste(arrests_sum_sex$time_labels[1:2], ":00 PM", sep = "")
+arrests_sum_sex$time_labels[3:7] <- paste(arrests_sum_sex$time_labels[3:7], ":00 AM", sep = "")
+```
+
+
+```{r plots for arrests per sex as well as race and age}
+
+# Dumbbell for arrests per sex 
+
+ggplot(arrests_sum_sex) +
+  geom_segment(aes(x=MALE, xend=FEMALE, y = time, yend = time), size = 1, alpha = 0.25)+
+  geom_point(aes(x=MALE, y = time, color="#a3c4dc"), size = 2.5) +
+  geom_point(aes(x=FEMALE, y = time, color="#0e668b"), size = 2.5) +
+  scale_color_discrete(labels = c("Female","Male")) +
+  labs(title = "Arrests per time of the night and sex in DC (2017)", y = "Time", x = "Count", color = "Gender") +
+  scale_y_discrete(label = arrests_sum_sex$time_labels)
+
+
+# Bar graph of arrests for disorderly conduct and simple assault based on gender
+
+ggplot(data=arrests_cleaned) +
+  geom_bar(aes(x=SEX), fill = c("purple", "orange"), width = 0.3) +
+  labs(title="Arrest count for disorderly conduct and simple assault in DC based on gender \n(2017)", x="Sex", y="Count") +
+  scale_x_discrete(label = c("Female", "Male"))
+
+# Generating dummy variable for black and non-black 
+
+arrests_cleaned$is_black <- as.factor(ifelse(arrests_cleaned$RACE == "BLACK", 1, 0))
+
+# Bar graph of arrests for disorderly conduct and simple assault based on race
+
+ggplot(data=arrests_cleaned) +
+  geom_bar(aes(x=is_black), width = 0.3) +
+  labs(title="Arrest count for disorderly conduct and simple assault in DC based on race (2017)", x="Race", y="Count") + scale_x_discrete(label = c("Not Black", "Black"))
+
+# Bar graph of arrests per arrest category and race
+
+ggplot(data=arrests_cleaned) +
+  geom_bar(aes(x = CATEGORY ,fill=is_black), width = 0.3) +
+  labs(title = "Arrest count per arrest category and race (2018)", x="Arrest category", y="Count")
+
+# Histogram and distribution curve of arrests based on age
+
+ggplot(data = arrests_cleaned, aes(AGE)) +
+  geom_histogram(binwidth = 2) +
+  geom_freqpoly(binwidth = 2) +
+  xlim(c(18,78)) +
+  labs(title="Distribution of arrests for disorderly conduct and simple assault in DC based on age \n(2017)", x="Age", y="Count")
+
+# Cumulative distribution density curve of arrests based on age 
+
+ggplot(data = arrests_cleaned, aes(AGE)) +
+  geom_density() +
+  labs(title="Cumulative distribution function of arrests for disorderly \nconduct and simple assault in DC based on age (2017)", x="Age", y="Density")
+```
+
