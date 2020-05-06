@@ -109,7 +109,7 @@ disorder <-  arrests %>%
 ```
 
 
-## Subsetting liquor licenses
+## Subsetting liquor licensed locations
 
 Next, we narrowed down liquor licensed locations to those that are on-premise (bars, taverns, and arenas). This eliminated locations where people are buying alcohol to-go (e.g. grocery stores) 
 
@@ -450,7 +450,7 @@ summary(fit_lagged)
 
 ```
 
-In the spatially lagged model, variables significant at the 10% level are the same as in the )LS model: 
+In the spatially lagged model, variables significant at the 10% level are the same as in the OLS model: 
 
   1. Number of on-premise liquor licensed locations
   2. Total population

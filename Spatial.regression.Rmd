@@ -23,22 +23,345 @@ library(tidycensus)
 library(stringr)
 ```
 
-## R Markdown
+```{r previous datasets to load, include=FALSE}
+arrests_sf <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/cleaned/arrests.cleaned_sf/arrests.cleaned_sf.shp")
+tracts_shp <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/cleaned/tracts.cleaned_shp/tracts.cleaned.shp")
+liquor_sf <-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/cleaned/liquor.cleaned_sf/liquor.cleaned_sf.shp")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+## Motivation behind spatial regression
 
-You can also embed plots, for example:
+<p> Standard OLS regression assumes observations are independent. However, when dealing with spatial phenomena, it is unlikely that an event that happened in one spot is not at all related to an event that happened right nearby. </p>
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+<p> The existence of such relatedness between points in space is called spatial auto-correlation. With regard to the dependent variable of interest, arrest count per Census tract, our hypothesis is that spatial auto-correlation exists and is related to another spatially auto-correlated variable (i.e on-premise liquor) </p>
+
+<p> We assess the presence of spatial auto-correlation with a statistic called Moran's I. Looking at both feature locations and their values, the statistic calculates whether the pattern of features is either clustered, dispersed, or random alongside relevant z-score and p-scores.  </p>
+
+
+<p> Moran's I calculates the mean and variance for the feature in question and then, for each feature value, it subtracts the mean, thereby producing a deviation from the mean. The deviation values for every neighboring feature are then multiplied to produce cross-products. When Moran's I is significant and the z-score is positive, spatial auto-correlation is present and the data are clustered in a non-random way. When Moran's I is significant and the z-score is negative, spatial auto-correlation is present and the data are dispersed/repelled in a non-random way. When Moran's I is not significant, one cannot reject the null that the data are distributed randomly in space and no spatial auto-correlation is present. </p>
+
+
+Sources 
+
+  1. https://maczokni.github.io/crimemapping_textbook_bookdown/spatial-regression-models.html
+  2. https://rspatial.org/raster/analysis/3-spauto.html
+  3. https://pro.arcgis.com/en/pro-app/tool-reference/spatial-statistics/h-how-spatial-auto-correlation-moran-s-i-spatial-st.htm
+
+
+## Preparing an OLS model
+
+<p> The first part of this analysis requires creating a simple OLS model that does not take spatial information into account. Our dependent variable is arrest count per tract, along with a handful of independent variables including on-premise liquor locations per tract, median household income per tract, the percentage of males between 25 and 29 per tract, total population per tract, and population density per tract. </p>
+
+<p> We chose these independent variables because we believed they would be correlated with drunken behavior and assault. We tried a number of other variables besides this from the American Community Survey (ACS) that did not improve our model including measures of neighborhood transience, poverty, education, college students, and many others. </p>
+
+
+```{r add controls}
+#download ACS data
+census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
+acs <-get_acs(geography = "tract", 
+          variables= c("B19013_001", "B01001H_009", "B01001_002"),
+          year=2018, state="DC") 
+
+#tidy format of ACS data
+acs<-subset(acs, select=c("estimate", "GEOID", "variable"))
+acs<-spread(acs, variable, estimate)
+
+acs$med_hh_income<-acs$B19013_001
+acs$males_25_29<-acs$B01001H_009
+acs$tot_male<-acs$B01001_002
+
+pop_shp<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
+pop_shp$tot_pop<-pop_shp$B01001_001
+pop_shp$area<-pop_shp$Shape__Are
+pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "NAME", "GEOID", "area"))
+
+#get tract names to match up between population data set and census tract data set 
+pop_shp$TRACT<-substring(pop_shp$GEOID, 6)
+pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "TRACT", "area"))
+acs$TRACT<-substring(acs$GEOID, 6)
+acs<-subset(acs, select=c("med_hh_income", "TRACT", "males_25_29", "tot_male"))
+                          
+#population as df to enable join with ACS
+pop_shp<-as.data.frame(pop_shp)
+
+#create new variables of arrests per tract and liquor stores per tract
+arrests_in_tract <- st_join(arrests_sf, tracts_shp, join = st_within)
+arrests_count <- count(as_tibble(arrests_in_tract), TRACT) %>%
+  print()
+
+liquor_in_tract <- st_join(liquor_sf, tracts_shp, join = st_within)
+liquor_count <- count(as_tibble(liquor_in_tract), TRACT) %>%
+  print()
+
+main <- left_join(pop_shp, acs, by="TRACT")
+main<-left_join(main, arrests_count, by="TRACT", all.x=TRUE)
+main$arrests_count <- main$n
+main$n <-NULL
+main$arrests_count[is.na(main$arrests_count)] <- 0
+
+main<-left_join(main, liquor_count, by="TRACT", all.x=TRUE)
+main$liquor_count <- main$n
+main$n <-NULL
+main$liquor_count[is.na(main$liquor_count)] <- 0
+
+#delete tracts missing data 
+main<-main[-c(68),]
+main<-main[-c(2),]
+
+#add in column for sq miles in order to create pop density variable
+sq.miles<-subset(tracts_shp, select=c("TRACT", "SQ_MILES"))
+sq.miles$geometry <- NULL
+main<-left_join(main, sq.miles, by="TRACT")
+
+#generate pop density variable
+main<- mutate(main, popdens = tot_pop/SQ_MILES)
+
+#turn total males 25-29 to percentage 
+main <- mutate(main, males_25_29 = males_25_29/tot_male)
+
+main<- na.omit(main)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Running an OLS regression 
+
+
+```{r regression}
+#OLS regression
+main_sf<- st_sf(main,
+                sf_column_name = c("geometry"))
+
+fit_1 <- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_sf)
+
+#r-squared
+summary(fit_1)$r.squared
+
+#Alternative way to look at OLS results with broom package
+broom_summary<-tidy(fit_1)
+broom_summary
+
+```
+
+In this simple OLS specification, the variables significant at the 10% level are:
+
+  1. Number of on-premise liquor licensed locations
+  2. Total population
+  3. Median household income
+  5. Percentage of total males that are 25-29
+
+<p> Despite many attempts with different specifications, our model is still unfortunately pretty weak, with an R2 of less than 50%. This means our model is explaining less than 50% of the variance in our dependent variable, arrests. Such poor specification is not uncommon when dealing with crime data, which is subject to various forms of bias. </p> 
+
+<p> The next step of our analysis is to do a preliminary visual analysis of the presence of spatial auto-correlation by plotting the residuals from the OLS regression on a map of DC. </p>
+
+```{r spatial autocorrelation}
+#Visual test of spatial autocorrelation, using rersiduals
+main_sf$res_fit1 <- residuals(fit_1)
+main_sf$fitted_fit1 <- fitted(fit_1)
+
+main_sf$sd_breaks <- scale(main_sf$res_fit1)[,1]
+summary(main_sf$sd_breaks)
+my_breaks <- c(14,-3,-2,-1,1,2,3,14) 
+
+ggplot(data=main_sf) + 
+  scale_fill_gradient2(breaks=my_breaks,
+                       low = "springgreen4",
+                       mid = "white",
+                       high = "red",)+
+  geom_sf(aes(fill=sd_breaks, geometry=geometry)) + 
+  labs(title="Residuals from arrest regression", fill= "distance from OLS line") +
+    theme_void() 
+```
+
+
+It is unclear from this plot if there is spatial auto-correlation going on for either arrest over-prediction (green) or arrest under-prediction (red). A more formal test for spatial auto-correlation is needed.
+
+
+## Formal test for spatial auto-correlation: Moran's I 
+
+```{r spatial autocorrelation cont.}
+main_sp <- as(main_sf, "Spatial")
+w <- poly2nb(main_sp, row.names=main_sp$TRACT)
+summary(w)
+```
+
+The summary of "w" describes the distribution of connectedness across our data. Tracts have an average of almost 6 neighbors.  Next, we calculate Moran's I. 
+
+```{r Morans I}
+wm <- nb2mat(w, style='B')
+rwm <- mat2listw(wm, style='W')
+lm.morantest(fit_1, rwm, alternative="two.sided")
+```
+
+The p-value of Moran's I is not significant, therefore we cannot reject the null that arrests for simple assault and disorderly conduct are randomly distributed throughout Census tracts in DC. In other words, this model does not demonstrate spatial auto-correlation. This null result may be because our model was poorly specified. Despite this result, for the purposes of learning how to use a novel geospatial technique, we will nevertheless proceed with a spatial regression model.  
+
+## Sub-regional analysis 
+
+<p> In some geospatial analysis, researchers choose to run multiple spatial regressions for different sub-regions if they display different patterns. For example, in an analysis of homicide data between and 1960-1980, Baller and colleagues run different analyses for the North and the South because the South had much higher rates of unemployment during the 1970s. </p>
+
+<p> We decided to run a similar sub-analysis on the different quadrants of DC, which are distinct in terms of the level of nightlife present as well as in terms of the demographics of their respective populations. NW DC is for example largely white, high-income, and has a high concentration of on-premise liquor licensed locations. SE DC by contrast is largely black, low-income, and has fewer on-premise liquor licensed locations. </p>  
+
+Sources
+
+  1. Baller, R. D., Anselin, L., Messner, S. F., Deane, G., & Hawkins, D. F. (2001). Structural covariates of US county homicide rates: Incorporating spatial effects. Criminology, 39(3), 561-588.
+
+```{r sub region analysis on quads}
+#load DC quadrant data set
+quads<-st_read("/Users/Erica/Desktop/Data-Science/final.project/datasets/quadrants.csv")
+quads$TRACT<-as.numeric(quads$TRACT)
+main_sf$TRACT <-as.numeric(main_sf$TRACT)
+main_sf<-left_join(main_sf, quads, by="TRACT")
+
+#verify quadrant coding worked by assessing visually
+ggplot(data=main_sf) +
+  geom_sf(aes(fill=as.factor(QUAD))) + 
+ labs(title="", fill= "") +
+    theme_void() 
+
+ggplot(main_sf, aes(x = res_fit1, colour = as.factor(QUAD))) + 
+  geom_density() +
+  theme_minimal() +
+  labs(x= "residuals", color="")
+
+```
+
+<p>The four quadrants seem to display modest differences in their residuals. SW DC for instance seems to have more over-predictions of arrests than the other quadrants. This suggests we may want to run multiple types of spatial regression. </p>
+
+<p>There are two types of spatial regressions we could run: spatial error models and spatial lag models. Spatial error models treat spatial auto-correlation as if it does not reflect a real spatial process. For example, neighbors in one town may all  vote similarly not because they are communicating with each other, but because they have similar demographic characteristics (e.g. education levels). Spatial lag models by contrast treat spatial auto-correlation as an important predictor of the dependent variable. It is commonly used in models where the phenomenon of interest is highly social in nature. In our model, drinking, disorderly behavior, and confrontation are highly social and their existence in one neighborhood is liable to affect adjacent neighborhoods, where errant intoxicated persons may provoke altercations. </p>
+
+
+```{r subregional cont.}
+#subset quads
+main_NW_sf <- subset(main_sf, QUAD == "NW")
+main_NE_sf <- subset(main_sf, QUAD == "NE")
+main_SW_sf <- subset(main_sf, QUAD == "SW")
+main_SE_sf <- subset(main_sf, QUAD == "SE")
+
+#Turn sf into sp
+main_NW_sp <- as(main_NW_sf , "Spatial")
+main_NE_sp <- as(main_NE_sf , "Spatial")
+main_SW_sp <- as(main_SW_sf , "Spatial")
+main_SE_sp <- as(main_SE_sf , "Spatial")
+
+
+#Then we create a list of neighbours using the Queen criteria
+w_NW <- poly2nb(main_NW_sp, row.names=main_NW_sp$TRACT)
+
+wm_NW <- nb2mat(w_NW, style='B')
+rwm_NW <- mat2listw(wm_NW, style='W')
+
+fit_NW<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_NW_sf)
+
+#NE neighbors
+w_NE <- poly2nb(main_NE_sp, row.names=main_NE_sp$TRACT)
+
+wm_NE <- nb2mat(w_NE, style='B')
+rwm_NE <- mat2listw(wm_NE, style='W')
+
+fit_NE<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_NE_sf)
+
+#SW neighbors
+w_SW <- poly2nb(main_SW_sp, row.names=main_SW_sp$TRACT)
+
+wm_SW <- nb2mat(w_SW, style='B')
+rwm_SW <- mat2listw(wm_SW, style='W')
+
+fit_SW<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_SW_sf)
+
+#SE neighbors
+w_SE <- poly2nb(main_SE_sp, row.names=main_SE_sp$TRACT)
+
+wm_SE <- nb2mat(w_SE, style='B')
+rwm_SE <- mat2listw(wm_SE, style='W')
+
+fit_SE<- lm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_SE_sf)
+
+
+
+```
+
+
+```{r morans I by quad}
+
+lm.morantest(fit_NW, rwm_NW, alternative="two.sided")
+
+lm.morantest(fit_NE, rwm_NE, alternative="two.sided")
+
+lm.morantest(fit_SW, rwm_SW, alternative="two.sided") 
+
+lm.morantest(fit_SE, rwm_SE, alternative="two.sided") 
+
+```
+
+Moran's I is significant for NE DC, which suggests we may want to run two spatially lagged models, one for all of DC and one for NE DC in particular. SW DC has an NA p-value perhaps because it has two few tracts. 
+
+
+## Spatially lagged regression
+
+
+```{r spatially lagged model}
+#DC overall
+fit_lagged <- errorsarlm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_sf, rwm)
+
+summary(fit_lagged)
+
+#NE DC
+fit_lagged_NE <- errorsarlm(arrests_count ~liquor_count + tot_pop + popdens +
+             med_hh_income + males_25_29, data=main_NE_sf, rwm_NE)
+
+summary(fit_lagged_NE)
+
+```
+
+
+<p> In the spatially lagged model for DC overall, the variables significant at the 10% level are the same as in the OLS model: </p>
+
+  1. Number of on-premise liquor licensed locations
+  2. Total population
+  3. Median household income
+  4. Percentage of total males that are 25-29
+  
+<p> This was to be expected because we were not able to demonstrate spatial auto-correlation.</p>
+
+<p> In the spatially lagged model for NE DC, percentage of total males that are 25-29 is no longer significant. The variables significant at the 10% level instead are: </p>
+
+  1. Number of on-premise liquor licensed locations
+  2. Total population
+  3. Median household income
+
+<p> Likewise, the significance of on-premise liquor and median household income, though significant, are much less significant than compared to DC overall. This is difficult to interpret since our model is so weakly specified, but assuming it were well-specified, it would suggest that patterns of arrests for simple assault and disorderly conduct are fundamentally different in NE DC compared to the rest of DC. </p> 
+
+<p> Because of the weakness of our model, we cannot formulate any robust conclusions about our initial research question---the spatial influence of on-premise liquor licensed locations on late-night offenses for simple assault and disorderly conduct that resulted in arrests. Future specifications might just look at crime incidents, not those that resulted in arrests (we avoided these data because they did not capture disorderly conduct or simple assault, but instead more serious offenses like assault with a deadly weapon, murder, rape, etc.). Future specifications could also take into proximity data, like distance from a university for example. </p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

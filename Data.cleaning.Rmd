@@ -11,7 +11,6 @@ library(tmap)
 library(sf)
 library(spdep)
 library(car)
-library(GWmodel)
 library(gridExtra)
 library(httr)
 library(sp)
@@ -19,6 +18,7 @@ library(methods)
 library(broom)
 library(tidycensus)
 library(stringr)
+library(spatstat)
 ```
 
 ## Loading data
