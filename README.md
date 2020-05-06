@@ -17,37 +17,48 @@ For the analysis purpose, we start with a comprehensive exploratory analysis com
 ### Files description:
 
 0. Index:
+
 You can find the index page of the work in this file:
+
 - index.html
 
 1. Introduction and Literature review
+
 You can find the description of the project and literature review in these files: 
+
 - int_lit_review.Rmd 
 - int_lit_review.html
 
 2. Data cleaning 
+
 You can find the data cleaning process in these files: 
+
 - Data.cleaning.Rmd 
 - Data.cleaning.html
 
 3. Summary statistics
-You can find the summary statistics in these files: 
+
+You can find the summary statistics in these files:
+
 - Summary-Statistics.Rmd 
 - Summary-Statistics.html
 
 4. Point pattern analysis
-You can find the point pattern analysis in these files: 
+
+You can find the point pattern analysis in these files:
+
 - pointpattern.Rmd 
 - pointpattern.html
 
 5. Spatial regression
+
 You can find the spatial regression analysis in these files: 
+
 - Spatial.regression.Rmd 
 - Spatial.regression.html
 
---
 
-In this file we have specified the types of documents that we want git to ignore: 
+6. In this file we have specified the types of documents that we want git to ignore: 
 
 - .gitignore
 
