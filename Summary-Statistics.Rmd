@@ -320,7 +320,7 @@ ggplot(arrests_sum_sex) +
 
 ggplot(data=arrests_cleaned) +
   geom_bar(aes(x=SEX), fill = c("purple", "orange"), width = 0.3) +
-  labs(title="Arrest count for disorderly conduct and simple assault in DC based on gender \n(2017)", x="Sex", y="Count") +
+  labs(title="Arrest count for disorderly conduct and simple assault in DC based on sex \n(2017)", x="Sex", y="Count") +
   scale_x_discrete(label = c("Female", "Male"))
 
 # Generating dummy variable for black and non-black 
@@ -354,4 +354,6 @@ ggplot(data = arrests_cleaned, aes(AGE)) +
   labs(title="Cumulative distribution function of arrests for disorderly \nconduct and simple assault in DC based on age (2017)", x="Age", y="Density")
 ```
 
-Our summary statistics show that on average male individuals get more frequently arrested than female individuals and that these differences are even greater earlier in the night (10pm to 11pm) and for disorderly conduct than for simple assault. We also see that black individuals tend to get more frequently arrested than non-black individuals, and that these differences are greater for cases of simple assault. Finally, younger adults between 20 and 30 show a greater arrest count than older adults, the peak being around 25 years old. While arrest counts could be due to crime rates, it is important to note potential sources of selection bias within these results. As previously noted, while on average younger and male adults show greater rates of crime than older and female adults respectively, evidence shows that race still constitues a source of selection bias in arrests. Factors such as police profiling as well as poverty can influence arrest rates and crime. 
+Our summary statistics show that on average male individuals get more frequently arrested than female individuals and that these differences are even greater earlier in the night (10pm to 11pm) and for disorderly conduct than for simple assault. We also see that black individuals tend to get more frequently arrested than non-black individuals, and that these differences are greater for cases of simple assault. Finally, younger adults between 20 and 30 show a greater arrest count than older adults, the peak being around 25 years old.
+
+While arrest counts could be due to crime rates, it is important to note potential sources of selection bias within these results. As previously noted, while on average younger and male adults show greater rates of crime than older and female adults respectively, evidence shows that race still constitues a source of selection bias in arrests. Factors such as police profiling as well as poverty can influence arrest rates and crime. 
