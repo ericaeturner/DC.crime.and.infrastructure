@@ -1,0 +1,121 @@
+---
+title: "Data cleaning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
+library(tidyverse)
+library(knitr) 
+library(tmap)
+library(sf)
+library(spdep)
+library(car)
+library(GWmodel)
+library(gridExtra)
+library(httr)
+library(sp)
+library(methods)
+library(broom)
+library(tidycensus)
+library(stringr)
+```
+
+## Loading data
+
+
+```{r load data and subset,  results="hide"}
+arrests <-read.csv("./datasets/Adult_Arrests.csv")
+liquor <-read.csv("./datasets/Liquor_Licenses.csv")
+```
+
+
+## Subsetting arrests 
+
+<p>Here, we narrowed down arrests to simple assaults and disorderly conduct, occurring in 2017, between the hours of 10am and 4am, and those not missing data for longitude or latitude. We also narrowed down the types of disorderly conduct to those likely to happen as a result of intoxication (e.g. we eliminated leash law violations). </p>
+
+<p> One limitation with using these data sets in conjunction is that the data set for liquor licensed locations is a living document constantly being updated with locations that have active licenses, whereas the data for arrests is only for 2017. There are likely some arrests that occurred in the arrests data set near liquor licensed locations that no longer exist in 2020, and likewise liquor licensed locations that exist now that didn't exist in 2017. </p>
+
+
+```{r subsetting arrests,  results="hide"}
+unique(arrests$CATEGORY)
+
+arrests2 <- arrests %>%
+  subset(YEAR > 2016) %>%
+  subset(CATEGORY == "Simple Assault" | CATEGORY == "Disorderly Conduct")
+  
+arrests2[!is.na(arrests2$OFFENSE_LONGITUDE),]
+arrests2[!is.na(arrests2$OFFENSE_LATITUDE),]
+
+#Unique values of Disorderly Conduct to eliminate those not likely related to alcohol  
+arrests3 <- subset(arrests2, CATEGORY == "Disorderly Conduct")
+unique(arrests3$DESCRIPTION)
+
+arrests4 <- arrests2 %>%
+  subset(DESCRIPTION != "Animals - Other Than Dogs At Large "  | 
+           DESCRIPTION != "Illegal Dumping" |
+           DESCRIPTION != "Dogs - Vacci tion Required " |
+           DESCRIPTION != "Dogs - At Large" |
+           DESCRIPTION != "Crossing Police Line" |
+           DESCRIPTION != "Dogs - Unleashed"   |
+           DESCRIPTION != "Wearing Hood Or Mask ---  (a) No Person Or Persons Over 16 Years Of
+           Age, While Wearing Any Mask, Hood, Or Device Whereby Any Po" |
+           DESCRIPTION != "Crowding, Obstructing, or Incommoding (M)"  |
+           DESCRIPTION != "Panhandling"  |
+           DESCRIPTION != "Aggressive Panhandling" |
+           DESCRIPTION != "Dog Regulations - Unleashed Dog " |
+           DESCRIPTION != "Blocking Passage" |
+           DESCRIPTION != "Metro - Fail To Pay Fare" |
+           DESCRIPTION != "Disorderly Conduct In A Public Building" |
+           DESCRIPTION != "Panhandling - Aggressive" |
+           DESCRIPTION != "Panhandling - Private Property" |
+            DESCRIPTION != "Dogs - Disturbing The Peace" |
+            DESCRIPTION != "Dog - Dangerous Dog Attack Or Bite" |
+            DESCRIPTION != "Attending Or Kindling Bonfires " )
+
+arrests5 <- arrests4 %>%
+  subset(HOUR == 22:23 |
+           HOUR == 0:4) 
+
+arrests <- arrests5
+rm(arrests2, arrests3, arrests4, arrests5)
+
+assault <- arrests %>%
+  subset(CATEGORY == "Simple Assault")
+
+disorder <-  arrests %>%
+  subset(CATEGORY == "Disorderly Conduct")
+
+```
+
+
+## Subsetting liquor licensed locations
+
+Next, we narrowed down liquor licensed locations to those that are on-premise (bars, taverns, and arenas). This eliminated locations where people are buying alcohol to-go (e.g. grocery stores). 
+
+```{r subsetting liquor to on-premise locations, results="hide" }
+unique(liquor$STATUS)
+liquor <- subset(liquor, STATUS == "Active" |
+                   STATUS == "Issued")
+
+unique(liquor$TYPE)
+liquor2<- liquor %>%
+  subset(TYPE == "Club"  |
+           TYPE == "Nightclub"  |
+           TYPE == "Tavern"  |
+           TYPE == "Arena")
+           
+liquor2[!is.na(liquor2$LONGITUDE),]
+liquor2[!is.na(liquor2$LATITUDE),]  
+
+liquor <- liquor2
+
+rm(liquor2)
+```
+
+
+
+
+
+
+

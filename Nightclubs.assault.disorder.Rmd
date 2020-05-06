@@ -132,6 +132,9 @@ liquor <- liquor2
 
 rm(liquor2)
 
+write.csv(liquor, "./datasets/cleaned/liquor.cleaned.csv")
+write.csv(arrests, "./datasets/cleaned/arrests.cleaned.csv")
+
 ```
 
 ## Plotting disorderly conduct, simple assault and bar locations 
@@ -141,9 +144,8 @@ Next, we plotted simple choropleths to assess visually if the locations of bars 
 ```{r some exploratory data analysis with ggplot}
 tracts_shp<-st_read("./datasets/Census_Tracts_in_2010-shp/bafa98d7-cd1a-449a-8ccf-addab06aa319202041-1-js13da.tzjit.shp")
 tracts_shp<-subset(tracts_shp, select=c("geometry", "TRACT", "SQ_MILES"))
-#tracts_shp<-tracts_shp[-c(12),] #delete tract 2.02, which is missing income data (see below)
 
-
+st_write(tracts_shp, "./datasets/cleaned/tracts.cleaned_shp", driver="ESRI Shapefile") 
 
 plot.both <- ggplot(data=tracts_shp) + geom_sf(aes(fill=NULL)) + labs(title="Arrests for simple assault\nand disorderly conduct\n+ bar locations (2017)") 
 
@@ -174,6 +176,11 @@ liquor_sf<- st_as_sf(liquor,
                        coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
 
 
+st_write(arrests_sf, "./datasets/cleaned/arrests.cleaned_sf", driver="ESRI Shapefile") 
+st_write(liquor_sf, "./datasets/cleaned/liquor.cleaned_sf", driver="ESRI Shapefile") 
+
+
+
 #rm(arrests)
 #rm(assault)
 #rm(disorder)
@@ -186,43 +193,16 @@ Next, we added a variety of control variables by tract including...
 
 ```{r add controls}
 census_api_key("816f34b70c5f746503c5eb778287ef105fdb3902", install=TRUE, overwrite=TRUE)
-
 acs <-get_acs(geography = "tract", 
-          variables= c("B06009_005E", "B07001_017E", "B11015_002E", 
-                       "B12001_003E", "B17001_002E", "B25105_001E", 
-                       "B19013_001", "B25010_003E", "B23025_007E", 
-                       "B23008_012E", "B01002_002E", "B01001_002E", 
-                       "B01001H_008E", "B01001H_009E","B02001_002E",
-                       "B02001_003", "B03001_001", "B01001_002E", 
-                       "B14001_008M", "B01002_001E"),
+          variables= c("B19013_001", "B01001H_009", "B01001_002"),
           year=2018, state="DC") 
 
 acs<-subset(acs, select=c("estimate", "GEOID", "variable"))
 acs<-spread(acs, variable, estimate)
 
-acs$bach<-acs$B06009_005
-acs$transcience<-acs$B07001_017
-acs$non_relatives<-acs$B11015_002
-acs$males_never_married<-acs$B12001_003
-acs$poverty<-acs$B17001_002
-acs$housing_costs<-acs$B25105_001
 acs$med_hh_income<-acs$B19013_001
-acs$hhsize_rental<-acs$B25010_003
-acs$not_labforce<-acs$B23025_007
-acs$under6_mom<-acs$B23008_012
-
-acs$med_male_age<-acs$B01002_002
-acs$males_20_24<-acs$B01001H_008	
 acs$males_25_29<-acs$B01001H_009
-acs$white<-acs$B02001_002
-acs$black<-acs$B02001_003
-acs$hisp<-acs$B03001_001
 acs$tot_male<-acs$B01001_002
-acs$coll_enroll<-acs$B14001_008
-acs$med_age<-acs$B01002_001
-
-
-
 
 pop_shp<-st_read("./datasets/ACS_2018_Population_Variables_Tract-shp/1a06e536-b186-4e78-bab7-63836dce84f82020328-1-r1rbgx.oico.shp")
 pop_shp$tot_pop<-pop_shp$B01001_001
@@ -234,13 +214,9 @@ pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "NAME", "GEOID", "area"
 pop_shp$TRACT<-substring(pop_shp$GEOID, 6)
 pop_shp<-subset(pop_shp, select=c("geometry", "tot_pop", "TRACT", "area"))
 acs$TRACT<-substring(acs$GEOID, 6)
-acs<-subset(acs, select=c("bach", "transcience", 
-                          "non_relatives", "males_never_married", 
-                          "poverty", "housing_costs", "med_hh_income",
-                          "hhsize_rental", "not_labforce", "under6_mom", "TRACT" , 
-                          "tot_male" , "med_male_age", "males_20_24", "males_25_29", 
-                          "white", "black", "hisp", "coll_enroll", "med_age"))
+acs<-subset(acs, select=c("med_hh_income", "TRACT", "males_25_29"))
                           
+
 
 #population as df to enable join with acs
 pop_shp<-as.data.frame(pop_shp)
@@ -273,7 +249,6 @@ main$liquor_count[is.na(main$liquor_count)] <- 0
 #main<-main[-c(75),]
 #main<-main[-c(73),]
 
-
 sq.miles<-subset(tracts_shp, select=c("TRACT", "SQ_MILES"))
 sq.miles$geometry <- NULL
 main<-left_join(main, sq.miles, by="TRACT")
@@ -281,39 +256,8 @@ main<-left_join(main, sq.miles, by="TRACT")
 #generate pop density variable
 main<- mutate(main, popdens = tot_pop/SQ_MILES)
 
-
 #turn totals into percentages
-main <- mutate(main, bach = bach/tot_pop)
-main <- mutate(main, tot_bach = bach)
-
-
-main <- mutate(main, transcience = transcience/tot_pop)
-main <- mutate(main, non_relatives = non_relatives/tot_pop)
-main <- mutate(main, males_never_married = males_never_married/tot_male)
-
-main <- mutate(main, poverty = poverty/tot_pop)
-main <- mutate(main, tot_poverty = poverty)
-
-main <- mutate(main, not_labforce = not_labforce/tot_pop)
-
-main <- mutate(main, under6_mom = under6_mom/tot_pop)
-
 main <- mutate(main, males_20_24 = males_20_24/tot_male)
-main <- mutate(main, tot_males_20_24 = males_20_24)
-
-main <- mutate(main, males_25_29 = males_25_29/tot_male)
-main <- mutate(main, tot_males_25_29 = males_25_29)
-
-main <- mutate(main, white = white/tot_pop)
-main <- mutate(main,tot_white = white)
-
-main <- mutate(main, black = black/tot_pop)
-main <- mutate(main, tot_black = black)
-
-main <- mutate(main, hisp = hisp/tot_pop)
-main <- mutate(main, male_to_total = tot_male/tot_pop)
-main <- mutate(main, coll_enroll = coll_enroll/tot_pop)
-main <- mutate(main, tot_coll_enroll = coll_enroll)
 
 main<- na.omit(main)
 
