@@ -2,6 +2,7 @@
 title: "Point Pattern Analysis"
 output: html_document
 editor_options: 
+  chunk_output_type: console
 chunk_output_type: console
 ---
 
@@ -140,6 +141,41 @@ plot(dliquor, main="Density for liquor license locations")
 
 This plot indicates that arrests data has more clusters than liquor data. Specifically, the cluster in central DC visually seems to overlap - indicating a potential relationship. 
 
-This can be explored further and more formally through Ripley's K method. The cross-K function used here, is based on the average number of offenses within a certain distance of a liquor license location. It compares the observed data to a distribution that would be expected if the points were randomly distributed (rather than clustered in relation to each other). It essentially answers the question - could this clustering have occured simply by random chance? We use the inhomogenous version of K-cross as it is evident from the density plot that the distribution of points is not homogenous/uniform. 
+This can be explored further and more formally through Ripley's K method. 
 
-The envelope function help understand the significance of any pattern detected. It uses a Monte Carlo simulation randomly assigning points as offense or liquor license points. It runs such a simulation 99 times and if the curve representing the observed points falls within the confidence interval of the simulation, it implies that the pattern of clustering doesn't change even when the the categories are randomly assigned. That shows no significant relation between the location of liquor stores and offenses. 
+## Cross K Function (Ripley's)
+
+The cross-K function used here, is based on the average number of offenses within a certain distance of a liquor license location. It compares the observed data to a distribution that would be expected if the points were randomly distributed (rather than clustered in relation to each other). It essentially answers the question - could this clustering have occured simply by random chance? We use the inhomogenous version of K-cross as it is evident from the density plot that the distribution of points is not homogenous/uniform. 
+
+```{r crossK, cache=TRUE, warning=FALSE, error= FALSE, echo=TRUE}
+
+Karrests <- Kcross.inhom(jitter_mainpat, 
+                   i = "liquor",
+                   j = "offense",
+                   correction = "Ripley",
+                   lambdai =dliquor, 
+                   labdaj = darrest)
+
+plot(Karrests, main = "Cross K function (inhomogenous): Distance from liquor license to offenses")
+```
+
+Here we see that the black line for distribution of observed points lies below the red line theorised for a random distribution of points. This, interestingly, implies that liquor licenses repel, rather than attract offenses. 
+
+Let's explore the significance of this finding with the envelope funtion.
+
+## Envelope
+
+The envelope function uses a Monte Carlo simulation randomly assigning points as offense or liquor license points. It runs such a simulation 99 times and if the curve representing the observed points falls within the confidence interval of the simulation, it implies that the pattern of clustering doesn't change even when the the categories are randomly assigned. The null hypothesis is that the two distributions are spatially independent. If the observed data falls within the 'envelope' or confidence interval of this null hypothesis, then we fail to reject it. That shows no significant relation between the location of liquor stores and offenses. 
+
+{r enevelope, cache=TRUE, warning=FALSE, error= FALSE, echo=TRUE} 
+
+envarrests <- envelope(jitter_mainpat, fun=Kcross,
+                  nsim=100,
+                  i="liquor",j="offense",
+                  simulate=expression
+                  (rlabel(jitter_mainpat)),
+                  correction = "Ripley")
+
+plot(envarrests)
+```
+
