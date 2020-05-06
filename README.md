@@ -6,7 +6,7 @@
 
 ### May 2020
 
-### Project description:
+### Project description
 
 This work analyses the relationship between on-premises liquor licensed locations and crime incidents occurring late at night (10pm-4am), by census tracts in Washington D.C. in 2017. Our main hypothesis was that crime would be positively associated with the presence of on-premises liquor licensed locations.
 
@@ -14,7 +14,21 @@ We restricted our analysis to on-premise liquor licensed locations (which includ
 
 For the analysis purpose, we start with a comprehensive exploratory analysis compound of summary statistics and a point pattern analysis, to end with a spatial auto-correlation model based on Moran’s I statistic.
 
-### Files description:
+### Index
+
+
+[1. Introduction and Literature review](https://ericaeturner.github.io/DC.crime.and.infrastructure/int_lit_review)
+
+[2. Data cleaning ](https://ericaeturner.github.io/DC.crime.and.infrastructure/Data.cleaning)
+
+[3. Summary statistics](https://ericaeturner.github.io/DC.crime.and.infrastructure/Summary-Statistics)
+
+[4. Point pattern analysis](https://ericaeturner.github.io/DC.crime.and.infrastructure/pointpattern)
+
+[5. Spatial regression](https://ericaeturner.github.io/DC.crime.and.infrastructure/Spatial.regression)
+
+
+### Files description
 
 0. Index:
 
