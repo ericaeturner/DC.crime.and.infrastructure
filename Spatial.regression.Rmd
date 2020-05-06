@@ -245,7 +245,7 @@ main_SW_sp <- as(main_SW_sf , "Spatial")
 main_SE_sp <- as(main_SE_sf , "Spatial")
 
 
-#Then we create a list of neighbours using the Queen criteria
+#list of neighbours
 w_NW <- poly2nb(main_NW_sp, row.names=main_NW_sp$TRACT)
 
 wm_NW <- nb2mat(w_NW, style='B')
