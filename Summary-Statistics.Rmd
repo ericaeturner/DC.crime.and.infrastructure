@@ -1,8 +1,5 @@
 ---
 title: "Summary Statistics"
-output:
-  html_document: default
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -253,7 +250,7 @@ ggplot() +
 ```{r}
 # Summary statistics that show differences in arrest instances and distribution based on gender, race and age attributes.
 ```
-In the last section of our exploratory analysis, we explore differences in arrest instances and distribution based on sex, race and age as these factors can influence both crime and whether an individual gets arrested or not. For instance, women show lower criminality and thus, arrest rates than men. Additionally as a result of racial profiling, black men are more likely to getting arrested and collaterally, to be victims of police brutality than white men. 
+In the last section of our exploratory analysis, we explore differences in arrest instances and distribution based on sex, race and age as these factors can influence both crime and whether an individual gets arrested or not. For instance, women show lower criminality and thus, arrest rates than men. Additionally as a result of racial profiling, black men are more likely to getting arrested and collaterally, to be victims of police brutality than white men. Similarly, factors such as poverty can also influence arrests (individuals in certain neighborhoods are more likely to getting arrested), as well as crime rates.
 
 ```{r summary statistics based on sex}
 
@@ -319,7 +316,6 @@ ggplot(arrests_sum_sex) +
   labs(title = "Arrests per time of the night and sex in DC (2017)", y = "Time", x = "Count", color = "Gender") +
   scale_y_discrete(label = arrests_sum_sex$time_labels)
 
-
 # Bar graph of arrests for disorderly conduct and simple assault based on gender
 
 ggplot(data=arrests_cleaned) +
@@ -335,13 +331,13 @@ arrests_cleaned$is_black <- as.factor(ifelse(arrests_cleaned$RACE == "BLACK", 1,
 
 ggplot(data=arrests_cleaned) +
   geom_bar(aes(x=is_black), width = 0.3) +
-  labs(title="Arrest count for disorderly conduct and simple assault in DC based on race (2017)", x="Race", y="Count") + scale_x_discrete(label = c("Not Black", "Black"))
+  labs(title="Arrest count for disorderly conduct and simple assault in DC based on race \n(2017)", x="Race", y="Count") + scale_x_discrete(label = c("Not Black", "Black"))
 
 # Bar graph of arrests per arrest category and race
 
 ggplot(data=arrests_cleaned) +
   geom_bar(aes(x = CATEGORY ,fill=is_black), width = 0.3) +
-  labs(title = "Arrest count per arrest category and race (2018)", x="Arrest category", y="Count")
+  labs(title = "Arrest count per arrest category and race (2017)", x="Arrest category", y="Count")
 
 # Histogram and distribution curve of arrests based on age
 
@@ -349,7 +345,7 @@ ggplot(data = arrests_cleaned, aes(AGE)) +
   geom_histogram(binwidth = 2) +
   geom_freqpoly(binwidth = 2) +
   xlim(c(18,78)) +
-  labs(title="Distribution of arrests for disorderly conduct and simple assault in DC based on age \n(2017)", x="Age", y="Count")
+  labs(title="Distribution of arrests for disorderly conduct \nand simple assault in DC based on age (2017)", x="Age", y="Count")
 
 # Cumulative distribution density curve of arrests based on age 
 
@@ -358,3 +354,4 @@ ggplot(data = arrests_cleaned, aes(AGE)) +
   labs(title="Cumulative distribution function of arrests for disorderly \nconduct and simple assault in DC based on age (2017)", x="Age", y="Density")
 ```
 
+Our summary statistics show that on average male individuals get more frequently arrested than female individuals and that these differences are even greater earlier in the night (10pm to 11pm) and for disorderly conduct than for simple assault. We also see that black individuals tend to get more frequently arrested than non-black individuals, and that these differences are greater for cases of simple assault. Finally, younger adults between 20 and 30 show a greater arrest count than older adults, the peak being around 25 years old. While arrest counts could be due to crime rates, it is important to note potential sources of selection bias within these results. As previously noted, while on average younger and male adults show greater rates of crime than older and female adults respectively, evidence shows that race still constitues a source of selection bias in arrests. Factors such as police profiling as well as poverty can influence arrest rates and crime. 
